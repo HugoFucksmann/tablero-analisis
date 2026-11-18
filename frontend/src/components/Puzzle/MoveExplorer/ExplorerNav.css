@@ -1,0 +1,49 @@
+/* ── Barra de navegación Minimalista ────────────────────────────────────────── */
+.move-explorer-view .explorer-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  background: transparent;
+}
+
+/* ── Botones de navegación ── */
+.move-explorer-view .nav-btn {
+  background: transparent;
+  border: none;
+  color: #555;
+  width: 30px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.move-explorer-view .nav-btn:hover:not(:disabled) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.move-explorer-view .nav-btn:disabled {
+  opacity: 0.1;
+  cursor: not-allowed;
+}
+
+/* ── Contador de jugadas ── */
+.move-explorer-view .move-count-info {
+  margin-left: auto;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #444;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.move-explorer-view .move-count-info strong {
+  color: var(--accent-primary);
+  opacity: 0.8;
+}

@@ -1,0 +1,196 @@
+/* OpeningExplorer V2 - UX Optimizado & Refinado */
+
+.explorer-container-v2 {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: transparent;
+  padding: 0 var(--space-2);
+}
+
+/* Header compacto (solo para el input del token si está visible) */
+.explorer-header-mini {
+  padding: var(--space-1) var(--space-3);
+  margin-bottom: var(--space-1);
+}
+
+.explorer-token-input-mini {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  outline: none;
+}
+
+.explorer-token-input-mini:focus {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+/* Área de scroll */
+.explorer-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 var(--space-2);
+}
+
+/* Subgrupos (Offline / Masters) */
+.explorer-subgroup {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: var(--space-2);
+}
+
+.subgroup-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: var(--space-3) 0 var(--space-2) 6px;
+  opacity: 0.7;
+}
+
+.subgroup-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  margin: var(--space-2) 0;
+}
+
+/* Filas de movimientos - Equilibradas */
+.move-stat-row {
+  display: grid;
+  grid-template-columns: 3.2rem 1fr 2.5rem;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 32px; /* Un poco más alto para mejor legibilidad */
+}
+
+.move-stat-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateX(2px);
+}
+
+.move-san-container {
+  display: flex;
+  align-items: center;
+}
+
+.move-san {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  font-family: var(--font-main); /* Usamos Outfit para un look más moderno */
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.piece-icon {
+  font-size: 1.1em;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 1px;
+}
+
+.piece-icon.white { color: var(--eval-white); }
+.piece-icon.black { color: var(--text-secondary); }
+
+/* Barras de estadísticas - Más visibles pero elegantes */
+.win-rate-bar-container {
+  padding: 0 6px;
+}
+
+.win-rate-bar {
+  display: flex;
+  height: 6px; /* Grosor aumentado ligeramente para UX */
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+  width: 100%;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.bar-segment {
+  height: 100%;
+  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); /* Efecto elástico suave */
+}
+
+/* Colores para Online (Masters) */
+.bar-segment.white { background: var(--eval-white); }
+.bar-segment.draw  { background: #57534e; }
+.bar-segment.black { background: var(--eval-black); }
+
+/* Color para Offline */
+.bar-segment.tsv-freq {
+  background: var(--accent-primary);
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+
+/* Contador */
+.games-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+.count-label {
+  color: var(--accent-primary);
+  font-weight: 800;
+}
+
+/* Estados */
+.explorer-loading-mini,
+.explorer-error-mini,
+.explorer-empty-mini {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: var(--space-6) 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.explorer-error-mini {
+  color: var(--error-primary);
+}
+
+.explorer-empty-mini {
+  font-style: italic;
+  opacity: 0.6;
+}
+
+.gi-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Estado Stale (Mientras carga la nueva posición) */
+.explorer-container-v2.stale {
+  opacity: 0.6;
+  pointer-events: none;
+  filter: grayscale(0.2);
+  transition: opacity 0.1s ease;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}

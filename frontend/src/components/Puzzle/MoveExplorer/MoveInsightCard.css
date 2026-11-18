@@ -1,0 +1,192 @@
+/* ── Move Insight Card Modern (Detalle de la posición) ───────────────────── */
+.move-explorer-view .move-insight-card-modern {
+  margin: 0;
+  padding: 16px 20px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.02), transparent);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.move-explorer-view .insight-main-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ── Current Move Display ── */
+.move-explorer-view .current-move-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.move-explorer-view .move-target-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--accent-primary-rgb), 0.05);
+}
+
+.move-explorer-view .target-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  box-shadow: 0 0 8px var(--accent-primary);
+}
+
+.move-explorer-view .move-info-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.move-explorer-view .move-san-large {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.move-explorer-view .move-context-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+/* ── Engine Status Area ── */
+.move-explorer-view .engine-status-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.move-explorer-view .engine-score-capsule {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px 10px;
+  border-radius: 100px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.move-explorer-view .engine-score-capsule.pos {
+  color: #4caf50;
+  border-color: rgba(76, 175, 80, 0.2);
+}
+
+.move-explorer-view .engine-score-capsule.neg {
+  color: #f44336;
+  border-color: rgba(244, 67, 54, 0.2);
+}
+
+.move-explorer-view .cpu-icon {
+  opacity: 0.6;
+}
+
+.move-explorer-view .quality-indicator {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.move-explorer-view .quality-icon {
+  font-size: 1.3rem;
+  font-weight: 900;
+  filter: drop-shadow(0 0 4px rgba(0,0,0,0.5));
+}
+
+/* ── Historical Stats Bar ── */
+.move-explorer-view .historical-stats-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.move-explorer-view .db-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: #888;
+}
+
+.move-explorer-view .db-mini-icon {
+  opacity: 0.5;
+}
+
+.move-explorer-view .db-count strong {
+  color: #bbb;
+}
+
+.move-explorer-view .db-avg-eval {
+  margin-left: 8px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.move-explorer-view .db-avg-eval .pos { color: #4caf50; }
+.move-explorer-view .db-avg-eval .neg { color: #f44336; }
+
+.move-explorer-view .common-errors-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.move-explorer-view .error-micro-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.move-explorer-view .e-icon {
+  font-size: 0.85rem;
+  font-weight: 900;
+}
+
+.move-explorer-view .e-count {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #777;
+}
+
+.move-explorer-view .clean-pos-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.65rem;
+  color: #555;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.move-explorer-view .check-icon {
+  color: #4caf50;
+  font-weight: 900;
+}

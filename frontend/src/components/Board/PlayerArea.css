@@ -1,0 +1,120 @@
+/* ═══════════════════════════════════════════════════════════════
+   PlayerArea
+   ═══════════════════════════════════════════════════════════════ */
+
+.player-area {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px var(--space-2);
+    background: transparent;
+    transition: background 0.3s ease;
+    position: relative;
+    min-height: 2.8rem; /* Narrower height */
+}
+
+/* Subtler Active state */
+.player-area.active {
+    background: transparent;
+}
+
+.player-area.active .player-name,
+.player-area.active .clock-time {
+    color: var(--accent-primary);
+}
+
+.player-area.active .clock-time {
+    font-weight: 800;
+}
+
+.player-main {
+    display: flex;
+    align-items: center;
+    flex: 1;
+}
+
+.player-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0;
+}
+
+.player-name-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    line-height: 1.2;
+}
+
+.player-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+}
+
+.player-elo {
+    font-size: 0.75rem;
+    color: #999;
+    font-weight: 500;
+}
+
+.player-status-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 1.1rem;
+}
+
+/* ── Captured pieces ────────────────────────────────────────────── */
+.captured-pieces {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+}
+
+.captured-piece {
+    font-size: 1.1rem;
+    line-height: 1;
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.5));
+}
+
+.captured-piece.white {
+    color: #ddd;
+}
+
+.captured-piece.black {
+    color: #666;
+}
+
+.material-diff {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #808080;
+    margin-left: 2px;
+}
+
+/* ── Clock ──────────────────────────────────────────────────────── */
+.player-clock-area {
+    margin-left: auto;
+}
+
+.clock-time {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #999;
+    transition: all 0.3s ease;
+}
+
+.clock-time.ticking {
+    /* Color handled by .player-area.active */
+}
+
+@media (max-width: 768px) {
+    .player-area {
+        padding: var(--space-2);
+    }
+}

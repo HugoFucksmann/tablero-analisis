@@ -1,0 +1,139 @@
+/* Evaluation Bar — Premium */
+
+.eval-bar-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 100%;
+  width: 100%;
+}
+
+.eval-bar-wrapper.vertical {
+  flex-direction: column;
+}
+
+.eval-bar-wrapper.horizontal {
+  flex-direction: row;
+}
+
+/* ── Container ──────────────────────────────────────────────────── */
+.eval-bar-container {
+  border-radius: var(--border-radius-lg);
+  position: relative;
+  overflow: hidden;
+  /* Dark base = black's territory */
+  background-color: var(--eval-black);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    var(--shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.vertical .eval-bar-container {
+  width: 100%;
+  flex: 1;
+}
+
+.horizontal .eval-bar-container {
+  height: 1rem;
+  flex: 1;
+}
+
+/* ── Fill (white side) ──────────────────────────────────────────── */
+.eval-bar-fill {
+  position: absolute;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.vertical .eval-bar-fill {
+  width: 100%;
+  bottom: 0;
+  left: 0;
+  /* White fills upward from the bottom */
+  background: linear-gradient(to top,
+      var(--eval-white) 0%,
+      rgba(255, 255, 255, 0.8) 100%);
+}
+
+.horizontal .eval-bar-fill {
+  height: 100%;
+  top: 0;
+  left: 0;
+  background: linear-gradient(to right,
+      rgba(255, 255, 255, 0.75) 0%,
+      var(--eval-white) 100%);
+}
+
+/* ── Center marker (0.0 line) ───────────────────────────────────── */
+.eval-marker.center {
+  position: absolute;
+  z-index: 2;
+}
+
+.vertical .eval-marker.center {
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.08);
+}
+
+.horizontal .eval-marker.center {
+  left: 50%;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ── Inner gloss overlay ────────────────────────────────────────── */
+.eval-bar-container::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(to bottom,
+      rgba(255, 255, 255, 0.04) 0%,
+      transparent 50%);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* ── Score display ──────────────────────────────────────────────── */
+.eval-value-display {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-weight: 800;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  min-width: 3rem;
+  text-align: center;
+  user-select: none;
+  letter-spacing: 0.02em;
+}
+
+.eval-score {
+  font-size: 0.9rem; /* Slightly larger */
+  line-height: 1;
+}
+
+/* Positive = white advantage → light */
+.eval-score.positive {
+  color: #fff;
+}
+
+/* Negative = black advantage → muted */
+.eval-score.negative {
+  color: #888;
+}
+
+.eval-mate {
+  color: var(--accent-primary);
+  font-size: 0.75rem;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+}

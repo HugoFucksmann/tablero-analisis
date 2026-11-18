@@ -1,0 +1,182 @@
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap');
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+
+:root {
+  /* ── Colors: Base ───────────────────────────────────────────── */
+  --bg-primary: #050505;
+  --bg-secondary: #0d0d0d;
+  --bg-tertiary: #171717;
+
+  /* ── Colors: Accents ────────────────────────────────────────── */
+  --accent-primary: #d97706;
+  /* Ámbar cálido */
+  --accent-secondary: #b45309;
+  --accent-glow: rgba(217, 119, 6, 0.2);
+  --accent-glow-muted: rgba(217, 119, 6, 0.05);
+  --error-primary: #ef4444;
+  --error-bg: rgba(239, 68, 68, 0.08);
+  --error-border: rgba(239, 68, 68, 0.15);
+  --success-primary: #10b981;
+  --success-glow: rgba(16, 185, 129, 0.15);
+  --warning-primary: #f59e0b;
+  --warning-glow: rgba(245, 158, 11, 0.15);
+  --info-primary: #3b82f6;
+  --info-glow: rgba(59, 130, 246, 0.15);
+  --purple-primary: #a855f7;
+  --purple-glow: rgba(168, 85, 247, 0.15);
+
+  /* ── Colors: Text ───────────────────────────────────────────── */
+  --text-primary: #fafaf9;
+  --text-secondary: #a8a29e;
+  --text-muted: #57534e;
+
+  /* ── Colors: Chess Specific ─────────────────────────────────── */
+  --eval-white: #f5f5f4;
+  --eval-black: #1c1917;
+
+  /* ── Colors: Glass / Surface ────────────────────────────────── */
+  --glass: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(217, 119, 6, 0.1);
+
+  /* ── Colors: Chess Arrows ───────────────────────────────────── */
+  --arrow-engine-1: rgba(6, 182, 212, 0.95); /* Cyan 500 */
+  --arrow-engine-2: rgba(6, 182, 212, 0.75);
+  --arrow-engine-3: rgba(6, 182, 212, 0.55);
+  --arrow-engine-4: rgba(6, 182, 212, 0.35);
+  --arrow-engine-5: rgba(6, 182, 212, 0.20);
+  --arrow-engine-fallback: rgba(6, 182, 212, 0.8);
+
+  --arrow-explorer-base: rgba(59, 130, 246, 0.45);
+  --arrow-explorer-hover: rgba(59, 130, 246, 0.85);
+
+  --arrow-user: rgba(168, 85, 247, 0.85); /* Purple primary */
+  --arrow-opponent: rgba(245, 158, 11, 0.85); /* Warning/Amber */
+  --arrow-master: rgba(16, 185, 129, 0.85); /* Success/Green */
+  --accent-color: var(--accent-primary);
+
+  /* ── Typography ─────────────────────────────────────────────── */
+  --font-main: 'Outfit', 'Inter', -apple-system, sans-serif;
+
+  --text-2xs: clamp(0.55rem, 0.45vw, 0.65rem);
+  --text-xs: clamp(0.625rem, 0.55vw, 0.75rem);
+  --text-sm: clamp(0.75rem, 0.65vw, 0.875rem);
+  --text-md: clamp(0.875rem, 0.75vw, 1rem);
+  --text-lg: clamp(1rem, 0.9vw, 1.25rem);
+  --text-xl: clamp(1.125rem, 1.1vw, 1.5rem);
+
+  /* ── Spacing ────────────────────────────────────────────────── */
+  --space-1: clamp(0.25rem, 0.3vw, 0.375rem);
+  --space-2: clamp(0.375rem, 0.4vw, 0.5rem);
+  --space-3: clamp(0.5rem, 0.5vw, 0.625rem);
+  --space-4: clamp(0.625rem, 0.6vw, 0.75rem);
+  --space-5: clamp(0.75rem, 0.7vw, 1rem);
+  --space-6: clamp(1rem, 0.9vw, 1.25rem);
+  --space-8: clamp(1.25rem, 1.2vw, 1.75rem);
+
+  /* ── Layout ─────────────────────────────────────────────────── */
+  --side-panel-width: clamp(18.5rem, 24vw, 24rem);
+
+  @media (max-width: 1440px) {
+    --side-panel-width: clamp(16.5rem, 24vw, 22rem);
+  }
+
+  --border-radius: 0.5rem;
+  --border-radius-lg: 0.75rem;
+
+  /* ── Effects ────────────────────────────────────────────────── */
+  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --shadow: 0 0.25rem 1.25rem -0.3rem rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 0.5rem 2rem -0.25rem rgba(0, 0, 0, 0.6);
+}
+
+/* ── Reset ──────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: var(--font-main);
+}
+
+/* ── Body ───────────────────────────────────────────────────────── */
+html {
+  font-size: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: #333 #1a1a1a;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  animation: fadeIn 0.8s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+#root {
+  height: 100%;
+}
+
+/* ── Utility: Glass Panel ───────────────────────────────────────── */
+.glass-panel {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  transition: var(--transition);
+}
+
+/* ── Utility: Premium Scrollbar (Global & Scoped Unificado) ─────── */
+::-webkit-scrollbar,
+.premium-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track,
+.premium-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb,
+.premium-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  border: 2px solid var(--bg-primary);
+  /* Efecto de padding integrado */
+}
+
+::-webkit-scrollbar-thumb:hover,
+.premium-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+/* ── Accessibility: Reduced Motion (WCAG 2.3.3) ─────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  body {
+    animation: none !important;
+  }
+}

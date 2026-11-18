@@ -1,0 +1,194 @@
+/* TimeErrorBreakdown.css */
+
+.time-error-breakdown-wrapper {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* ── Legend row ──────────────────────────────────────────────────── */
+.time-legend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Calidad (??/?/?!) — izquierda */
+.legend-quality-icons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-xs);
+  font-family: monospace;
+  font-weight: 800;
+}
+
+.legend-quality-item {
+  cursor: help;
+  opacity: 0.9;
+  transition: opacity 0.15s ease;
+}
+
+.legend-quality-item:hover {
+  opacity: 1;
+}
+
+/* Separador vertical */
+.legend-separator {
+  display: inline-block;
+  width: 1px;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+/* Tipos de error por tiempo — derecha, empuja con margin-left: auto */
+.legend-time-icons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+/* Item individual de tiempo */
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: help;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.legend-item:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.legend-icon {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.legend-item:hover .legend-icon {
+  transform: scale(1.15);
+}
+
+.legend-item.pressure {
+  color: #ef4444;
+}
+
+.legend-item.precipitation {
+  color: #f59e0b;
+}
+
+.legend-item.overthinking {
+  color: #a78bfa;
+}
+
+.legend-item.tactical {
+  color: #94a3b8;
+}
+
+.legend-num {
+  font-family: monospace;
+  font-weight: 700;
+}
+
+/* ── Preview card ────────────────────────────────────────────────── */
+.time-error-breakdown-wrapper.preview-wrapper {
+  padding: 8px 12px;
+  background: rgba(139, 92, 246, 0.03);
+  border: 1px dashed rgba(139, 92, 246, 0.2);
+  border-radius: var(--border-radius);
+  margin-top: var(--space-3);
+  transition: all 0.3s ease;
+}
+
+.time-error-breakdown-wrapper.preview-wrapper:hover {
+  background: rgba(139, 92, 246, 0.05);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+
+.preview-icon {
+  color: var(--accent-primary);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+
+
+/* ── No clocks card ──────────────────────────────────────────────── */
+.time-error-breakdown-wrapper.no-clocks-wrapper {
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--border-radius);
+  margin-top: var(--space-3);
+}
+
+.legend-item-no-clocks {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.no-clocks-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.no-clocks-text {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ── Perfect game badge ──────────────────────────────────────────── */
+.time-perfect-game-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.1);
+  border-radius: var(--border-radius);
+}
+
+.perfect-check-icon {
+  color: var(--success-primary);
+  flex-shrink: 0;
+}
+
+.perfect-text {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+/* ── Animaciones ─────────────────────────────────────────────────── */
+.animate-pulse {
+  animation: pulse-icon 2s infinite ease-in-out;
+}
+
+@keyframes pulse-icon {
+
+  0%,
+  100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
