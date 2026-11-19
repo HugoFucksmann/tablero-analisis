@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, List, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, List, AlertTriangle, Target } from 'lucide-react';
 import './StatsTabs.css';
 
 
@@ -9,7 +9,8 @@ export const StatsTabs = ({
   totalStats, 
   analysesCount, 
   selectedCount, 
-  onBulkDelete 
+  onBulkDelete,
+  onExtractPuzzles,
 }) => {
   return (
     <header className="stats-top-bar">
@@ -26,9 +27,16 @@ export const StatsTabs = ({
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         {activeTab === 'history' && selectedCount > 0 && (
+          <>
+          {onExtractPuzzles && (
+            <button className="bulk-delete-btn bulk-extract-btn" onClick={onExtractPuzzles} title="Extraer puzzles de las partidas seleccionadas">
+              <Target size={13} /> Puzzles {selectedCount}
+            </button>
+          )}
           <button className="bulk-delete-btn" onClick={onBulkDelete}>
             <AlertTriangle size={13} /> Borrar {selectedCount}
           </button>
+          </>
         )}
         <div className="stats-view-toggle">
           <button

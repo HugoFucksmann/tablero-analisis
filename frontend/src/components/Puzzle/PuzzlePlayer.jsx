@@ -107,6 +107,12 @@ export const PuzzlePlayer = ({ puzzles, initialIndex, onBack }) => {
         playChessSound('notify');
     }, [isSolved, puzzleId]);
 
+    // Fallo: registrarlo una sola vez por intento fallido (repetición espaciada)
+    useEffect(() => {
+        if (!isWrong || !puzzleId) return;
+        backendService.puzzleFailed(puzzleId);
+    }, [isWrong, puzzleId]);
+
     // Respuesta automática del rival cuando le toca (pasos impares de la secuencia).
     const step = puzzleState?.currentStep;
     const sequence = puzzleState?.sequence;

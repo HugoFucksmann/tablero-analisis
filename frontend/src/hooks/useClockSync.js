@@ -6,6 +6,7 @@ export const useClockSync = () => {
     const pgnCommentsByIndex = useGameStore(state => state.pgnCommentsByIndex);
     const currentMoveIndex = useGameStore(state => state.currentMoveIndex);
     const setClocks = useGameStore(state => state.setClocks);
+    const appMode = useGameStore(state => state.appMode);
 
     const allClocks = useMemo(() => {
         if (history.length === 0 || !pgnCommentsByIndex) return { initial: {}, moves: [] };
@@ -41,8 +42,10 @@ export const useClockSync = () => {
     }, [history, pgnCommentsByIndex]);
 
     useEffect(() => {
+        // En el modo Jugar los relojes son los de la partida en curso, no los de un PGN
+        if (appMode === 'play') return;
         if (!allClocks.moves || allClocks.moves.length === 0) return;
         const current = currentMoveIndex >= 0 ? allClocks.moves[currentMoveIndex] : allClocks.initial;
         setClocks(current?.white || null, current?.black || null);
-    }, [currentMoveIndex, allClocks, setClocks]);
+    }, [currentMoveIndex, allClocks, setClocks, appMode]);
 };

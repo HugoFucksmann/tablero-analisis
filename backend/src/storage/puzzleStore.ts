@@ -9,6 +9,11 @@ export const PuzzleStore = {
         return SqliteStore.getPuzzles();
     },
 
+    /** IDs de partida con puzzles generados (para insignias en la UI). */
+    getGameIds(): string[] {
+        return SqliteStore.getPuzzleGameIds();
+    },
+
     /**
      * Persists a new puzzle after checking for duplicates.
      * Duplicate detection is delegated to PuzzleRepo (SQL query, not in-memory scan).
@@ -47,6 +52,11 @@ export const PuzzleStore = {
      */
     clear(): number {
         return SqliteStore.clearPuzzles();
+    },
+
+    /** Registra un intento para la repetición espaciada. */
+    recordAttempt(id: string, correct: boolean): void {
+        SqliteStore.recordPuzzleAttempt(id, correct);
     },
 
     /**

@@ -18,12 +18,15 @@ export const SqliteStore = {
     getAggregatedStats: (filters?: any) => StatsRepo.getAggregatedStats(filters),
     getStatDetails: (category: string, filters?: any) => StatsRepo.getStatDetails(category, filters),
     getMoveExplorer: (fen: string) => StatsRepo.getMoveExplorer(fen),
+    getGamesAtPosition: (fen: string) => StatsRepo.getGamesAtPosition(fen),
 
     // ── Puzzles ───────────────────────────────────────────────────────────────
     getPuzzles: () => PuzzleRepo.findAll(),
+    getPuzzleGameIds: () => PuzzleRepo.findGameIds(),
     savePuzzle: (p: any) => PuzzleRepo.save(p),
     deletePuzzle: (id: string) => PuzzleRepo.delete(id),
     clearPuzzles: () => PuzzleRepo.clear(),
+    recordPuzzleAttempt: (id: string, correct: boolean) => PuzzleRepo.recordAttempt(id, correct),
     incrementPuzzleSolved: (id: string) => PuzzleRepo.incrementSolved(id),
     isPuzzleDuplicate: (fen: string, seq: string[], gameId?: string | null, ply?: number | null) =>
         PuzzleRepo.isDuplicate(fen, seq, gameId, ply),

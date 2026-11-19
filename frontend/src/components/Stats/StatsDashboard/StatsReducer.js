@@ -10,6 +10,8 @@ export const statsInitialState = {
   timeFilter: 'all',
   durationFilter: 'all',
   countFilter: 'all',
+  incrementFilter: 'all',
+  startFilter: 'all',
 };
 
 export function statsReducer(state, action) {
@@ -29,7 +31,7 @@ export function statsReducer(state, action) {
       };
     }
     case 'RESET_FILTERS':
-      return { ...state, timeFilter: 'all', durationFilter: 'all', countFilter: 'all' };
+      return { ...state, timeFilter: 'all', durationFilter: 'all', countFilter: 'all', incrementFilter: 'all', startFilter: 'all' };
     default:
       return state;
   }

@@ -4,12 +4,6 @@ import { useGameStore } from '../../../store/useGameStore';
 import { Cpu, Database } from 'lucide-react';
 import './MoveInsightCard.css';
 
-const SPECIAL_LABELS = {
-  'Insta-move Blunder': { color: '#f44336', label: 'IB' },
-  'Deep-think Blunder': { color: '#b71c1c', label: 'DB' },
-  'Time Pressure Error': { color: '#ff5722', label: 'TP' }
-};
-
 export const RenderSan = ({ san }) => {
   if (!san) return null;
   const pieceIcons = {
@@ -36,6 +30,9 @@ export const MoveInsightCard = ({ stats }) => {
 
   const currentEval = evaluationHistory[currentMoveIndex];
   const currentMoveQuality = moveEvaluations[currentMoveIndex];
+  // `moveEvaluations` guarda la etiqueta como string (p. ej. 'Error'), no como objeto.
+  const qualityLabel = typeof currentMoveQuality === 'string' ? currentMoveQuality : currentMoveQuality?.label;
+  const qualityConfig = EVAL_CONFIG[qualityLabel];
   const lastMove = currentMoveIndex >= 0 ? history[currentMoveIndex] : null;
 
   const displayScore = currentEval
@@ -74,9 +71,9 @@ export const MoveInsightCard = ({ stats }) => {
           </div>
           
           {currentMoveQuality && (
-            <div className="quality-indicator" title={currentMoveQuality.label}>
-              <span className="quality-icon" style={{ color: EVAL_CONFIG[currentMoveQuality.label]?.color }}>
-                {EVAL_CONFIG[currentMoveQuality.label]?.icon || '?'}
+            <div className="quality-indicator" title={qualityLabel}>
+              <span className="quality-icon" style={{ color: qualityConfig?.color }}>
+                {qualityConfig?.icon || '?'}
               </span>
             </div>
           )}
@@ -98,7 +95,7 @@ export const MoveInsightCard = ({ stats }) => {
           <div className="common-errors-row">
             {topLabels.length > 0 ? (
               topLabels.map(([label, count]) => {
-                const config = EVAL_CONFIG[label] || SPECIAL_LABELS[label];
+                const config = EVAL_CONFIG[label];
                 return (
                   <div key={label} className="error-micro-pill" title={`${count} veces: ${label}`}>
                     <span className="e-icon" style={{ color: config?.color }}>{config?.icon}</span>

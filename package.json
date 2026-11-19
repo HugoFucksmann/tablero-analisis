@@ -1,6 +1,6 @@
 {
   "name": "tablero-analisis",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Tablero de análisis de ajedrez: frontend (React) + backend (Node, Stockfish, SQLite)",
   "license": "MIT",
@@ -10,6 +10,7 @@
     "start:backend": "npm --prefix backend start",
     "dev:frontend": "npm --prefix frontend run dev",
     "lint": "npm --prefix frontend run lint",
-    "typecheck": "npm --prefix backend run typecheck"
+    "typecheck": "npm --prefix backend run typecheck",
+    "test": "npm --prefix backend test && npm --prefix frontend test"
   }
 }

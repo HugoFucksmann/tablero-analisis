@@ -10,6 +10,7 @@ export const ImportGameList = ({
   allSelected, 
   onToggleAll, 
   analysedIds, 
+  puzzleIds,
   selectedGameIds, 
   loadingId, 
   onToggleGameSelection, 
@@ -49,6 +50,7 @@ export const ImportGameList = ({
                   key={game.id}
                   game={game}
                   isAnalyzed={analysedIds.has(String(game.id))}
+                  hasPuzzles={puzzleIds?.has(String(game.id))}
                   isSelected={selectedGameIds.includes(game.id)}
                   loadingId={loadingId}
                   onToggleSelection={onToggleGameSelection}

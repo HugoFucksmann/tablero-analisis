@@ -1,52 +1,10 @@
 import { useGameStore } from '../store/useGameStore';
 import { backendService } from './backendService';
-
-/**
- * Convierte el campo TimeControl de PGN al formato de filtro del dashboard.
- * Formatos soportados:
- *   - "600+0"  → '10m'  (Lichess / Chess.com: segundos base + incremento)
- *   - "600"    → '10m'  (sin incremento)
- *   - "0:10:00" → '10m' (Reloj inicial PGN: horas:minutos:segundos)
- *   - "-"      → null   (sin control de tiempo)
- * Umbrales (en minutos de base):
- *   ≤ 1   → '1m'
- *   ≤ 3   → '3m'
- *   ≤ 5   → '5m'
- *   ≤ 10  → '10m'
- *   ≤ 15  → '15m'
- *   ≤ 30  → '30m'
- *   > 30  → null (correspondencia: sin filtro)
- */
-function _normalizeTimeControl(raw) {
-    if (!raw || raw === '-' || raw === '?') return null;
-    let baseSec = 0;
-    
-    if (raw.includes(':')) {
-        // Formato HH:MM:SS
-        const parts = raw.split(':').map(Number);
-        if (parts.length === 3) {
-            baseSec = parts[0] * 3600 + parts[1] * 60 + parts[2];
-        } else if (parts.length === 2) {
-            baseSec = parts[0] * 60 + parts[1];
-        }
-    } else {
-        // Formato segundos+incremento
-        baseSec = parseInt(raw.split('+')[0], 10);
-    }
-    
-    if (isNaN(baseSec) || baseSec === 0) return null;
-    const mins = baseSec / 60;
-    if (mins <= 1)  return '1m';
-    if (mins <= 3)  return '3m';
-    if (mins <= 5)  return '5m';
-    if (mins <= 10) return '10m';
-    if (mins <= 15) return '15m';
-    if (mins <= 30) return '30m';
-    return null;
-}
+import { normalizeTimeControl } from '../utils/timeControl';
 
 class AnalysisBridge {
-    #abortController = null;
+    #abortController = null;     // análisis de partida (job)
+    #liveAbortController = null; // evaluación en vivo
     isRunning = false;
 
     constructor() {
@@ -74,6 +32,11 @@ class AnalysisBridge {
         if (this.#abortController) {
             this.#abortController.abort();
             this.#abortController = null;
+        }
+        // El `cancel` total del servidor también detiene la evaluación en vivo.
+        if (this.#liveAbortController) {
+            this.#liveAbortController.abort();
+            this.#liveAbortController = null;
         }
     }
 
@@ -127,12 +90,14 @@ class AnalysisBridge {
         for (let i = 0; i < history.length; i++) {
             const comment = storeState.pgnCommentsByIndex?.[i];
             if (comment) {
-                const match = comment.match(/\[%clk\s+(\d+):(\d+):(\d+)\]/);
+                // Chess.com incluye décimas: [%clk 0:04:58.7]
+                const match = comment.match(/\[%clk\s+(\d+):(\d{1,2}):(\d{1,2})(?:\.(\d+))?\]/);
                 if (match) {
                     const h = parseInt(match[1], 10);
                     const m = parseInt(match[2], 10);
                     const s = parseInt(match[3], 10);
-                    times.push(h * 3600 + m * 60 + s);
+                    const frac = match[4] ? parseFloat(`0.${match[4]}`) : 0;
+                    times.push(h * 3600 + m * 60 + s + frac);
                     continue;
                 }
             }
@@ -152,7 +117,7 @@ class AnalysisBridge {
 
         // Normalizar el TimeControl del PGN a un formato corto ('1m','3m','5m','10m','15m','30m')
         const rawTc = pgnHeaders.TimeControl || storeState.clocks?.white || '';
-        const timeControl = _normalizeTimeControl(rawTc);
+        const timeControl = normalizeTimeControl(rawTc);
 
         // Extraer nombres de jugadores del PGN
         const playerWhite = pgnHeaders.White || null;
@@ -184,33 +149,44 @@ class AnalysisBridge {
         });
     }
 
+    /** Cancela solo la evaluación en vivo; no afecta a análisis de partida, lotes ni extracción. */
+    cancelLive() {
+        if (this.#liveAbortController) {
+            this.#liveAbortController.abort();
+            this.#liveAbortController = null;
+            if (backendService.isConnected) backendService.cancelLive();
+        }
+    }
+
     async analyzePosition(fen, moveIndex, callbacks = {}) {
         const { onResult, onStatus } = callbacks;
         const state = useGameStore.getState();
         const engineConfig = state.engineConfig ?? {};
 
-        if ((state.appMode === 'puzzle' && !state.explorerMode) || !backendService.isConnected) return;
+        // Puzzles no evalúa; Jugar solo si el usuario activó "Mostrar evaluación" (si no, sería hacer trampa)
+        if ((state.appMode === 'puzzle' && !state.explorerMode)
+            || (state.appMode === 'play' && !state.play.showEval)
+            || !backendService.isConnected) return;
 
-        this.cancel(false);
+        // Reemplaza solo la consulta en vivo anterior (el servidor también lo hace en analyze_position).
+        if (this.#liveAbortController) {
+            this.#liveAbortController.abort();
+            this.#liveAbortController = null;
+        }
         onStatus?.(true);
-        this.isRunning = true;
 
         const removeHandler = backendService.addHandler((msg) => {
             if (msg.type === 'position_progress' || msg.type === 'position_result') {
                 onResult?.(msg);
             }
-            if (msg.type === 'position_result') {
+            if (msg.type === 'position_result' || msg.type === 'error') {
                 onStatus?.(false);
-                this.isRunning = false;
-            }
-            if (msg.type === 'error') {
-                onStatus?.(false);
-                this.isRunning = false;
             }
         });
 
-        this.#abortController = new AbortController();
-        this.#abortController.signal.addEventListener('abort', () => removeHandler());
+        const ac = new AbortController();
+        this.#liveAbortController = ac;
+        ac.signal.addEventListener('abort', () => removeHandler());
 
         backendService.analyzePosition(fen, moveIndex, {
             ...engineConfig,

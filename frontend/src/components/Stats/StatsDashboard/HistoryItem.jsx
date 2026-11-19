@@ -1,4 +1,6 @@
 import React from 'react';
+import { Trash2, Target } from 'lucide-react';
+import { openAnalysedGame } from '../../../utils/openGame';
 import './HistoryItem.css';
 
 const formatTimeControl = (tc) => {
@@ -54,7 +56,7 @@ const formatTimeControl = (tc) => {
   return tc;
 };
 
-export const HistoryItem = React.memo(({ item, selected, onToggle }) => {
+export const HistoryItem = React.memo(({ item, selected, onToggle, onDelete, hasPuzzles }) => {
   const formattedDate = React.useMemo(() => {
     try {
       // Prefer gameDate (real match date) over date (analysis date)
@@ -78,20 +80,35 @@ export const HistoryItem = React.memo(({ item, selected, onToggle }) => {
     || (item.color === 'white' ? item.playerBlack : item.playerWhite)
     || null;
 
+  // Clic en la fila: abre la partida analizada en el tablero. El check solo marca la selección.
+  const openGame = () => {
+    openAnalysedGame(item.gameId);
+  };
+
   return (
     <div
       className={`history-item ${selected ? 'selected' : ''}`}
-      onClick={() => onToggle(item.id)}
+      onClick={openGame}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          openGame();
+        } else if (e.key === ' ') {
           e.preventDefault();
           onToggle(item.id);
         }
       }}
       role="button"
       tabIndex={0}
+      title="Abrir partida (Espacio: seleccionar)"
     >
-      <div className="hi-check"><div className="hi-check-inner"></div></div>
+      <div
+        className="hi-check"
+        role="checkbox"
+        aria-checked={selected}
+        aria-label="Seleccionar partida"
+        onClick={(e) => { e.stopPropagation(); onToggle(item.id); }}
+      ><div className="hi-check-inner"></div></div>
       <div className="hi-main">
         <div className="hi-opening">{item.opening || 'Unknown Opening'}</div>
         <div className="hi-meta">
@@ -102,6 +119,9 @@ export const HistoryItem = React.memo(({ item, selected, onToggle }) => {
           <span>{item.moveCount} jugadas</span>
           {formattedTC && (
             <span className="hi-tc">{formattedTC}</span>
+          )}
+          {hasPuzzles && (
+            <span className="hi-puzzle-badge" title="Tiene puzzles generados"><Target size={11} /></span>
           )}
           <span className={`hi-result-badge ${resultClass}`}>
             {resultLabel}
@@ -117,6 +137,17 @@ export const HistoryItem = React.memo(({ item, selected, onToggle }) => {
         </div>
         <div className="hi-acc-label">precisión</div>
       </div>
+      {onDelete && (
+        <button
+          className="hi-delete-btn"
+          title="Borrar análisis"
+          aria-label="Borrar análisis"
+          onClick={(e) => onDelete(item.id, e)}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <Trash2 size={14} />
+        </button>
+      )}
     </div>
   );
 });

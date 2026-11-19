@@ -1,6 +1,9 @@
 import 'dotenv/config';
 import http from 'http';
-import { readFileSync } from 'fs';
+import { readFileSync, createReadStream, createWriteStream, mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { createBackup, restoreFromFile } from './storage/backup.js';
 import { WebSocketServer, WebSocket } from 'ws';
 
 // Imports refactorizados
@@ -10,6 +13,7 @@ import { OpeningBook } from './services/openings/openingBook.js';
 import { OpeningService } from './services/openings/openingService.js';
 import { GameStore } from './storage/gameStore.js';
 import { handleClientMessage, ClientMessageContext } from './handlers/messageHandlers.js';
+import { validateClientMessage } from './handlers/messageValidator.js';
 import type { ClientMessage, ServerMessage } from '../../shared/protocol.js';
 
 // Inicializar libros de aperturas al arranque
@@ -25,12 +29,116 @@ const { version: VERSION } = JSON.parse(
 
 const PORT = parseInt(process.env.PORT || '9001', 10);
 
-const server = http.createServer((_req, res) => {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'chess-analysis-server', version: VERSION }));
+const MAX_RESTORE_BYTES = 1024 * 1024 * 1024; // 1 GB
+
+const server = http.createServer((req, res) => {
+    const origin = req.headers.origin;
+    if (!isAllowedOrigin(origin)) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Origin not allowed' }));
+        return;
+    }
+    // CORS solo para orígenes permitidos (el frontend de desarrollo corre en otro puerto)
+    if (origin) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Vary', 'Origin');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    }
+    if (req.method === 'OPTIONS') {
+        res.writeHead(204);
+        res.end();
+        return;
+    }
+
+    const path = (req.url || '/').split('?')[0];
+    const json = (status: number, body: unknown) => {
+        res.writeHead(status, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(body));
+    };
+
+    // Descarga de una copia de seguridad (análisis + puzzles)
+    if (req.method === 'GET' && path === '/backup') {
+        createBackup().then((backup) => {
+            const stamp = new Date().toISOString().slice(0, 10);
+            res.writeHead(200, {
+                'Content-Type': 'application/octet-stream',
+                'Content-Disposition': `attachment; filename="tablero-backup-${stamp}.sqlite"`,
+            });
+            const stream = createReadStream(backup.path);
+            stream.on('close', backup.cleanup);
+            stream.on('error', () => { backup.cleanup(); res.destroy(); });
+            stream.pipe(res);
+        }).catch((err: Error) => json(500, { error: err.message }));
+        return;
+    }
+
+    // Restauración: el cuerpo es el archivo .sqlite; se fusiona con la base actual
+    if (req.method === 'POST' && path === '/restore') {
+        const declared = Number(req.headers['content-length'] || 0);
+        if (declared > MAX_RESTORE_BYTES) { json(413, { error: 'Archivo demasiado grande' }); return; }
+
+        const dir = mkdtempSync(join(tmpdir(), 'chess-restore-'));
+        const file = join(dir, 'upload.sqlite');
+        const cleanup = () => { try { rmSync(dir, { recursive: true, force: true }); } catch { /* temp */ } };
+        let received = 0;
+        let aborted = false;
+        const out = createWriteStream(file);
+
+        req.on('data', (chunk: Buffer) => {
+            received += chunk.length;
+            if (received > MAX_RESTORE_BYTES && !aborted) {
+                aborted = true;
+                req.destroy();
+                out.destroy();
+                cleanup();
+            }
+        });
+        req.pipe(out);
+        out.on('finish', () => {
+            if (aborted) return;
+            try {
+                const result = restoreFromFile(file);
+                json(200, { ok: true, ...result });
+            } catch (err: any) {
+                json(400, { error: err.message });
+            } finally {
+                cleanup();
+            }
+        });
+        out.on('error', (err) => { cleanup(); if (!res.headersSent) json(500, { error: err.message }); });
+        return;
+    }
+
+    json(200, { status: 'chess-analysis-server', version: VERSION });
 });
 
-const wss = new WebSocketServer({ server });
+// Límite de tamaño por mensaje (un lote con muchos PGN/historiales cabe de sobra).
+const MAX_PAYLOAD_BYTES = 8 * 1024 * 1024;
+
+// Solo se aceptan conexiones desde páginas locales (o las de ALLOWED_ORIGINS, separadas por coma):
+// evita que cualquier web abierta en el navegador hable con el motor local (CSWSH).
+const EXTRA_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean);
+const isAllowedOrigin = (origin: string | undefined): boolean => {
+    if (!origin) return true; // clientes que no son navegadores (no envían Origin)
+    if (EXTRA_ORIGINS.includes(origin)) return true;
+    try {
+        const { hostname } = new URL(origin);
+        return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname.endsWith('.localhost');
+    } catch {
+        return false;
+    }
+};
+
+const wss = new WebSocketServer({
+    server,
+    maxPayload: MAX_PAYLOAD_BYTES,
+    verifyClient: ({ origin }: { origin: string }) => {
+        const ok = isAllowedOrigin(origin);
+        if (!ok) console.warn(`[Server] Rejected connection from origin: ${origin}`);
+        return ok;
+    },
+});
 
 wss.on('connection', (ws: WebSocket) => {
     console.log('[Server] Client connected');
@@ -47,6 +155,14 @@ wss.on('connection', (ws: WebSocket) => {
         }
         if (!msg || typeof msg !== 'object' || typeof msg.type !== 'string') {
             ws.send(JSON.stringify({ type: 'error', message: 'Invalid message: "type" is required' }));
+            return;
+        }
+
+        const invalid = validateClientMessage(msg);
+        if (invalid) {
+            const rejection: Record<string, unknown> = { type: 'error', message: `Invalid message (${msg.type}): ${invalid}` };
+            if (typeof msg.requestId === 'string') rejection.requestId = msg.requestId;
+            ws.send(JSON.stringify(rejection));
             return;
         }
 

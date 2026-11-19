@@ -1,6 +1,6 @@
 import { EvaluationEngine } from './evaluationRules.js';
 import { OpeningService, DetectedOpeningResult } from '../openings/openingService.js';
-import { buildPositions, buildAnalysisOrder, EngineLine, EvaluationResult, ClassifiedMoveData } from '../../utils/analysisUtils.js';
+import { buildPositions, buildAnalysisOrder, computeMoveTime, parseIncrement, EngineLine, EvaluationResult, ClassifiedMoveData } from '../../utils/analysisUtils.js';
 import { MoveClassifier } from './moveClassifier.js';
 import { PhaseDetector } from '../../utils/phaseDetector.js';
 import { GameStore } from '../../storage/gameStore.js';
@@ -19,11 +19,21 @@ export interface MoveAnalysisProgress {
     lines: EngineLine[];
 }
 
+const STANDARD_START_PLACEMENT = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
+
+/** ¿La partida arranca desde una posición distinta a la inicial estándar? */
+function isCustomStart(startFen: string | null | undefined): boolean {
+    if (!startFen) return false;
+    return startFen.trim().split(' ')[0] !== STANDARD_START_PLACEMENT;
+}
+
 export interface MoveAnalysisClassification {
     index: number;
     label: string;
     isBook: boolean;
     errorTimeClass: 'time_pressure' | 'precipitation' | 'overthinking' | null;
+    moveTime?: number | null;
+    remainingTime?: number | null;
 }
 
 export interface GameAnalysisCallbacks {
@@ -129,7 +139,7 @@ export class GameAnalysisCoordinator {
                 this._tryClassify(
                     ply, history, positions, evalResultsRef,
                     bookStatus, openingState, finalMoveData,
-                    completedSet, onMoveResult, labelCounts, times
+                    completedSet, onMoveResult, labelCounts, times, parseIncrement(extraInfo.timeControl)
                 );
             };
 
@@ -248,6 +258,7 @@ export class GameAnalysisCoordinator {
                     color: playerColor,
                     win: winNormalized,
                     timeControl: extraInfo.timeControl || null,
+                    customStart: isCustomStart(startFen),
                     accuracyByPhase,
                     labelCounts,
                     advancedMetrics,
@@ -287,7 +298,8 @@ export class GameAnalysisCoordinator {
         completedSet: Set<number>,
         onMoveResult: ((data: MoveAnalysisProgress | MoveAnalysisClassification) => void) | undefined,
         labelCounts: Record<string, number>,
-        times: number[]
+        times: number[],
+        increment: number
     ): void {
         if (completedSet.has(ply)) return;
 
@@ -296,9 +308,7 @@ export class GameAnalysisCoordinator {
 
         if (times && times.length > ply) {
             remainingTime = times[ply];
-            if (ply >= 2 && times[ply - 2] !== undefined && times[ply - 2] !== null && times[ply] !== undefined && times[ply] !== null) {
-                moveTime = times[ply - 2] - times[ply];
-            }
+            moveTime = computeMoveTime(times, ply, increment);
         }
 
         const result = MoveClassifier.classify({
@@ -315,7 +325,7 @@ export class GameAnalysisCoordinator {
         if (!result) return;
 
         const { label, isBook, wpLoss, isWhiteMove, errorTimeClass } = result;
-        onMoveResult?.({ index: ply, label, isBook, errorTimeClass });
+        onMoveResult?.({ index: ply, label, isBook, errorTimeClass, moveTime, remainingTime });
 
         let phase = 'Medio Juego';
         if (isBook) {

@@ -12,7 +12,7 @@
 .move-list-header {
   display: grid;
   grid-template-columns: 2rem 1fr 1fr auto;
-  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-6);
+  padding: var(--space-2) var(--gutter, var(--space-5));
   background: transparent;
   font-size: var(--text-xs);
   font-weight: 800;
@@ -57,7 +57,7 @@
 .move-row {
   display: grid;
   grid-template-columns: 2rem 1fr 1fr;
-  padding: 1px var(--space-2);
+  padding: 1px calc(var(--gutter, var(--space-5)) - var(--space-2));
   border-bottom: 1px solid rgba(255, 255, 255, 0.02);
   align-items: center;
 }

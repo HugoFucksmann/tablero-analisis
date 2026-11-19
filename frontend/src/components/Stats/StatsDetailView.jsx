@@ -10,15 +10,13 @@ const LazyChessboard = React.memo(({ fen }) => {
     const [isVisible, setIsVisible] = useState(false);
     const ref = useRef(null);
 
+    // Se monta al acercarse a la pantalla y se desmonta al alejarse: con cientos de tarjetas, mantener
+    // todos los tableros montados cuesta memoria y DOM (el contenedor conserva su tamaño).
     useEffect(() => {
-        const observer = new IntersectionObserver(([entry]) => {
-            if (entry.isIntersecting) {
-                setIsVisible(true);
-                observer.disconnect();
-            }
-        }, { rootMargin: '400px' });
-        
-        if (ref.current) observer.observe(ref.current);
+        const el = ref.current;
+        if (!el) return;
+        const observer = new IntersectionObserver(([entry]) => setIsVisible(entry.isIntersecting), { rootMargin: '400px' });
+        observer.observe(el);
         return () => observer.disconnect();
     }, []);
 

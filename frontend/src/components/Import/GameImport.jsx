@@ -3,6 +3,7 @@ import { useGameStore } from '../../store/useGameStore';
 import { useShallow } from 'zustand/react/shallow';
 import { fetchLichessGames, fetchChesscomGames } from '../../services/gameApi';
 import { backendService } from '../../services/backendService';
+import { buildBatchGameFromPgn } from '../../utils/pgnImport';
 import './GameImport.css';
 
 // Sub-components
@@ -21,7 +22,7 @@ export const GameImport = ({ onGameSelect }) => {
   const {
     username, platform, games, lichessToken,
     lastTimestamp, chesscomPagination, hasMoreGames,
-    selectedGameIds, analysedGameIds,
+    selectedGameIds, analysedGameIds, puzzleGameIds,
     setSearchUsername, setSearchPlatform,
     setImportedGames, appendImportedGames, setPagination, resetGames,
     toggleGameSelection, selectAllGames, clearSelection,
@@ -36,6 +37,7 @@ export const GameImport = ({ onGameSelect }) => {
     hasMoreGames: state.hasMoreGames,
     selectedGameIds: state.selectedGameIds,
     analysedGameIds: state.analysedGameIds,
+    puzzleGameIds: state.puzzleGameIds,
     setSearchUsername: state.setSearchUsername,
     setSearchPlatform: state.setSearchPlatform,
     setImportedGames: state.setImportedGames,
@@ -55,10 +57,12 @@ export const GameImport = ({ onGameSelect }) => {
     isFetchingMore: false,
     error: '',
     customPgn: '',
-    batchStatus: null,
   });
 
-  const { loadingId, isFetching, isFetchingMore, error, customPgn, batchStatus } = uiState;
+  const { loadingId, isFetching, isFetchingMore, error, customPgn } = uiState;
+  // batchStatus vive en el store (lo actualiza useBackendSync) para que la evaluación en vivo se pause.
+  const batchStatus = useGameStore(s => s.batchStatus);
+  const extractionStatus = useGameStore(s => s.extractionStatus);
 
   // updateUi supports both plain patches and functional updaters (prevents stale closures)
   const updateUi = useCallback(
@@ -79,23 +83,8 @@ export const GameImport = ({ onGameSelect }) => {
 
       // Batch analysis handlers
       switch (msg.type) {
-        case 'batch_analysis_started':
-          updateUi({ batchStatus: { current: 0, total: msg.total, pct: 0, label: 'Iniciando…' } });
-          break;
-        case 'batch_analysis_progress':
-          // Use functional updater to avoid stale closure on batchStatus
-          updateUi(prev => ({
-            batchStatus: { ...prev.batchStatus, current: msg.gameIndex, pct: msg.pct, label: msg.label },
-          }));
-          break;
-        case 'batch_analysis_game_complete':
-          updateUi(prev => ({
-            batchStatus: { ...prev.batchStatus, current: msg.gameIndex + 1, pct: 100 },
-          }));
-          break;
         case 'batch_analysis_complete':
         case 'batch_analysis_cancelled':
-          updateUi({ batchStatus: null });
           clearSelection();
           // Refresh the analysed IDs set and the history list after a batch finishes
           // (también tras cancelar: las partidas ya terminadas quedaron guardadas)
@@ -109,7 +98,7 @@ export const GameImport = ({ onGameSelect }) => {
     backendService.getAnalysedIds();
 
     return () => cleanup();
-  }, [setAnalysedGameIds, clearSelection, updateUi]);
+  }, [setAnalysedGameIds, clearSelection]);
 
   // ── Handlers ─────────────────────────────────────────────────────
   const handlePlatformSwitch = (p) => {
@@ -192,6 +181,27 @@ export const GameImport = ({ onGameSelect }) => {
     updateUi({ loadingId: null });
   };
 
+  // PGN con varias partidas (archivo o texto): análisis en lote
+  const handleAnalyzePgnBatch = (pgnGames) => {
+    const batch = pgnGames.map(pgn => buildBatchGameFromPgn(pgn, username)).filter(Boolean);
+    if (batch.length === 0) {
+      updateUi({ error: 'No se encontraron partidas válidas en el PGN.' });
+      return;
+    }
+    updateUi({ error: '' });
+    backendService.analyzeGames(batch, useGameStore.getState().engineConfig);
+  };
+
+  const handleExtractPuzzles = () => {
+    const selectedSet = new Set(selectedGameIds);
+    const selectedGames = games
+      .filter(g => selectedSet.has(g.id) && g.pgn)
+      .map(g => ({ pgn: g.pgn, gameId: g.id }));
+    if (selectedGames.length === 0) return;
+    backendService.extractPuzzles(selectedGames, useGameStore.getState().engineConfig);
+    clearSelection();
+  };
+
   const handleAnalyzeBatch = () => {
     const userLower = username.trim().toLowerCase();
     const selectedSet = new Set(selectedGameIds);
@@ -230,6 +240,7 @@ export const GameImport = ({ onGameSelect }) => {
   // ── Derived ──────────────────────────────────────────────────────
   // Build Set from the lightweight analysedGameIds (all entries, no LIMIT)
   const analysedIds = useMemo(() => new Set(analysedGameIds), [analysedGameIds]);
+  const puzzleIds = useMemo(() => new Set(puzzleGameIds), [puzzleGameIds]);
 
   const unanalysedIds = useMemo(() =>
     games.reduce((acc, g) => {
@@ -256,7 +267,7 @@ export const GameImport = ({ onGameSelect }) => {
       </div>
 
       {platform === 'pgn' ? (
-        <PgnManualImport customPgn={customPgn} setCustomPgn={(val) => updateUi({ customPgn: val })} onLoad={(pgn) => handleLoadGame(pgn, `${Date.now()}`)} />
+        <PgnManualImport customPgn={customPgn} setCustomPgn={(val) => updateUi({ customPgn: val })} onLoad={(pgn) => handleLoadGame(pgn, `${Date.now()}`)} onAnalyzeBatch={handleAnalyzePgnBatch} />
       ) : (
         <>
           {error && <div className="gi-error"><AlertCircle size={13} /><span>{error}</span></div>}
@@ -269,6 +280,7 @@ export const GameImport = ({ onGameSelect }) => {
             allSelected={allSelected}
             onToggleAll={() => allSelected ? clearSelection() : selectAllGames()}
             analysedIds={analysedIds}
+            puzzleIds={puzzleIds}
             selectedGameIds={selectedGameIds}
             loadingId={loadingId}
             onToggleGameSelection={toggleGameSelection}
@@ -280,10 +292,21 @@ export const GameImport = ({ onGameSelect }) => {
 
           <BatchProgressOverlay batchStatus={batchStatus} onCancel={() => backendService.cancel()} />
 
+          <BatchProgressOverlay
+            batchStatus={extractionStatus && {
+              current: Math.min(extractionStatus.current, extractionStatus.total - 1),
+              total: extractionStatus.total,
+              pct: Math.round((extractionStatus.current / Math.max(1, extractionStatus.total)) * 100),
+              label: `Puzzles extraídos: ${extractionStatus.extracted}`,
+            }}
+            onCancel={() => backendService.cancelExtraction()}
+          />
+
           <BulkActionBar
             selectedCount={selectedGameIds.length}
-            batchStatus={batchStatus}
+            batchStatus={batchStatus || extractionStatus}
             onAnalyze={handleAnalyzeBatch}
+            onExtractPuzzles={handleExtractPuzzles}
             onClear={clearSelection}
           />
         </>

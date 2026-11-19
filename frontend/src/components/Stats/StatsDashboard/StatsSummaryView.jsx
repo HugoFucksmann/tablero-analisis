@@ -10,6 +10,7 @@ import {
   QualityStatsCard,
   BlundersByTimeCard,
   DangerousOpeningsCard,
+  OpeningDeviationsCard,
   PsychologicalProfileCard,
   TimeManagementCard
 } from '../StatsCards';
@@ -53,6 +54,7 @@ export const StatsSummaryView = ({ stats }) => {
         <OpeningStatsCard stats={stats} />
         <BlundersByTimeCard stats={stats} />
         <DangerousOpeningsCard stats={stats} />
+        <OpeningDeviationsCard stats={stats} />
       </div>
     </div>
 

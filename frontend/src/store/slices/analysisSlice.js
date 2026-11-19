@@ -8,6 +8,8 @@ export const createAnalysisSlice = (set, get) => ({
   bestMoves: {},
   alternativeLines: {},
   errorTimeClasses: {},
+  moveTimes: {},
+  remainingTimes: {},
   isAnalyzing: false,
   isCanceling: false,
   analysisProgress: 0,
@@ -21,7 +23,6 @@ export const createAnalysisSlice = (set, get) => ({
   openingName: 'Initial Position',
   openingPly: -1,
   openingDetected: false,
-  analyses: [], // kept as empty for backward compat — source of truth is librarySlice
 
   engineConfig: {
     depth: 18,
@@ -39,6 +40,8 @@ export const createAnalysisSlice = (set, get) => ({
     bestMoves: {},
     alternativeLines: {},
     errorTimeClasses: {},
+    moveTimes: {},
+    remainingTimes: {},
     isAnalyzing: false,
     isCanceling: false,
     analysisProgress: 0,
@@ -189,6 +192,8 @@ export const createAnalysisSlice = (set, get) => ({
       evaluationHistory,
       moveEvaluations: data.moveEvaluations || {},
       errorTimeClasses: data.errorTimeClasses || {},
+      moveTimes: data.moveTimes || {},
+      remainingTimes: data.remainingTimes || {},
       bestMoves: data.bestMoves || {},
       alternativeLines: data.alternativeLines || {},
       analysisReady: true,
@@ -221,6 +226,7 @@ export const createAnalysisSlice = (set, get) => ({
         fen: gameCopy.fen(),
         isExploreMode: false,
         mainLineData: null,
+        variations: [],
         arrows: [],
       });
     } else {

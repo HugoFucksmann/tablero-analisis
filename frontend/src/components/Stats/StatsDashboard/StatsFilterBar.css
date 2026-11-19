@@ -1,6 +1,6 @@
 .stats-filters-bar {
-  display: flex;
-  gap: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   flex-shrink: 0;
   overflow: hidden;
@@ -10,14 +10,21 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
+  padding: 8px var(--space-3);
   border-right: 1px solid rgba(255, 255, 255, 0.05);
-  flex: 1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   min-width: 0;
 }
 
-.filter-pill-group:last-child {
+/* Última columna de cada fila y última fila sin borde */
+.filter-pill-group:nth-child(3n) {
   border-right: none;
+}
+
+.filter-pill-group:nth-last-child(-n + 2):nth-child(3n + 1),
+.filter-pill-group:nth-last-child(-n + 2):nth-child(3n + 1) ~ .filter-pill-group,
+.filter-pill-group:last-child {
+  border-bottom: none;
 }
 
 .filter-pill-group svg {

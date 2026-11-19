@@ -62,6 +62,17 @@ export function build({
                 .filter(idx => finalMoveData[idx]?.errorTimeClass)
                 .map(idx => [idx, finalMoveData[idx]!.errorTimeClass])
         ),
+        // Tiempo pensado y reloj restante por ply (para el gráfico de tiempos)
+        moveTimes: Object.fromEntries(
+            completedIndexes
+                .filter(idx => typeof finalMoveData[idx]?.moveTime === 'number')
+                .map(idx => [idx, finalMoveData[idx]!.moveTime])
+        ),
+        remainingTimes: Object.fromEntries(
+            completedIndexes
+                .filter(idx => typeof finalMoveData[idx]?.remainingTime === 'number')
+                .map(idx => [idx, finalMoveData[idx]!.remainingTime])
+        ),
         movePhases: Object.fromEntries(
             completedIndexes
                 .filter(idx => finalMoveData[idx]?.phase)

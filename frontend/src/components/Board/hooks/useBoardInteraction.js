@@ -1,4 +1,16 @@
 import { useState } from 'react';
+import { Chess } from 'chess.js';
+import { useGameStore } from '../../../store/useGameStore';
+
+// ¿Existe una jugada legal de promoción de `from` a `to` en la posición actual?
+const isLegalPromotion = (from, to) => {
+    try {
+        const chess = new Chess(useGameStore.getState().fen);
+        return chess.moves({ square: from, verbose: true }).some(m => m.to === to && m.promotion);
+    } catch {
+        return false;
+    }
+};
 
 export const useBoardInteraction = (makeMove) => {
     const [promotionMove, setPromotionMove] = useState(null);
@@ -13,7 +25,8 @@ export const useBoardInteraction = (makeMove) => {
         const isPawn = piece ? piece[1] === 'P' : true;
         const isPromotionRank = targetSquare[1] === '8' || targetSquare[1] === '1';
 
-        if (isPawn && isPromotionRank) {
+        // Solo se pide la pieza de promoción si la jugada es realmente legal; si no, rebota.
+        if (isPawn && isPromotionRank && isLegalPromotion(sourceSquare, targetSquare)) {
             setPromotionMove({ from: sourceSquare, to: targetSquare });
             return false;
         }

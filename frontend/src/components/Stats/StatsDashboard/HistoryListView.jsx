@@ -1,4 +1,5 @@
 import React from 'react';
+import { useGameStore } from '../../../store/useGameStore';
 import { HistoryItem } from './HistoryItem';
 import './HistoryListView.css';
 
@@ -12,6 +13,8 @@ export const HistoryListView = ({
   hasMore, 
   onLoadMore 
 }) => {
+  const puzzleGameIds = useGameStore(s => s.puzzleGameIds);
+  const puzzleSet = React.useMemo(() => new Set(puzzleGameIds), [puzzleGameIds]);
   return (
     <div className="stats-history-view premium-scroll">
       <div className="history-list">
@@ -45,6 +48,7 @@ export const HistoryListView = ({
               selected={selectedIds.has(item.id)}
               onToggle={onToggleItem}
               onDelete={onDeleteItem}
+              hasPuzzles={puzzleSet.has(String(item.gameId))}
             />
           ))
         )}

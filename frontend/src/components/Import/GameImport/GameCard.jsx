@@ -1,9 +1,10 @@
 import React from 'react';
-import { CheckSquare, Square, Zap, Loader, ExternalLink } from 'lucide-react';
+import { CheckSquare, Square, Zap, Loader, ExternalLink, Target } from 'lucide-react';
 
 export const GameCard = ({ 
   game, 
   isAnalyzed, 
+  hasPuzzles = false,
   isSelected, 
   loadingId, 
   onToggleSelection, 
@@ -35,6 +36,11 @@ export const GameCard = ({
         <div className="gi-card-meta">
           <span className="gi-date">{game.date}</span>
           <div className="gi-card-status">
+            {hasPuzzles && (
+              <span className="gi-analyzed-badge gi-puzzle-badge" title="Tiene puzzles generados">
+                <Target size={10} />
+              </span>
+            )}
             {isAnalyzed && (
               <span className="gi-analyzed-badge" title="Partida analizada">
                 <Zap size={10} fill="currentColor" />

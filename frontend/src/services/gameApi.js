@@ -17,7 +17,7 @@ export async function fetchLichessGames(username, max = 15, until = null, token 
         const game = JSON.parse(line);
         const clock = game.clock;
         const timeControl = clock
-          ? `${Math.floor(clock.initial / 60)}+${clock.increment}`
+          ? `${clock.initial}+${clock.increment}` // segundos base + incremento
           : (game.speed || null);
         acc.push({
           id: game.id,

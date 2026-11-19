@@ -145,6 +145,36 @@ export const DangerousOpeningsCard = ({ stats }) => {
   );
 };
 
+export const OpeningDeviationsCard = ({ stats }) => {
+  const dev = stats.openingDeviations;
+  if (!dev || dev.gamesWithDeviation === 0) return null;
+  return (
+    <div className="stats-card-modern">
+      <div className="card-title-modern">
+        <BookOpen size={13} /> Salida de teoría
+      </div>
+      <p className="dev-summary">
+        Sales de libro de media en la jugada <strong>{dev.avgMoveNumber}</strong>
+        {dev.commonMoveNumber ? <> (lo más frecuente: la {dev.commonMoveNumber})</> : null}
+        {' '}· {dev.gamesWithDeviation} partidas
+      </p>
+      <div className="stats-list">
+        {dev.openings.map((op) => (
+          <div key={op.opening} className="dev-opening">
+            <div className="stats-row-item">
+              <div className="dr-main"><span className="dr-name">{op.opening}</span></div>
+              <div className="dr-stats">
+                <span className="dr-avg">j.{op.avgMoveNumber}</span>
+                <span className="dr-label">{op.errorRate}% con error</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export const PsychologicalProfileCard = ({ stats }) => {
   const setSelectedStatCategory = useGameStore(state => state.setSelectedStatCategory);
 
@@ -274,12 +304,12 @@ export const TimeManagementCard = ({ stats }) => {
       <div className="tm-modern-view">
         <div className="tm-comparison">
           <div className="tm-side">
-            <span className="tm-val">{(avgMidgameTime / 1000).toFixed(1)}s</span>
+            <span className="tm-val">{avgMidgameTime.toFixed(1)}s</span>
             <span className="tm-label">Ritmo Normal</span>
           </div>
           <div className="tm-divider"></div>
           <div className="tm-side alert-side">
-            <span className="tm-val" style={{ color: assessmentColor }}>{(avgBlunderTime / 1000).toFixed(1)}s</span>
+            <span className="tm-val" style={{ color: assessmentColor }}>{avgBlunderTime.toFixed(1)}s</span>
             <span className="tm-label">En Errores</span>
           </div>
         </div>

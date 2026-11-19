@@ -2,6 +2,7 @@ import { Chess } from 'chess.js';
 import { analysisBridge } from '../../services/analysisBridge';
 import { playChessSound } from '../../utils/soundUtils';
 import { replayTo, extractPgnData } from '../../utils/chessUtils';
+import { sansOf, addVariation, replaySans } from '../../utils/variations';
 
 function evalFromEntry(evalObj) {
   if (!evalObj) return { score: 0, mate: null };
@@ -16,6 +17,7 @@ const GAME_RESET = {
   highlights: {},
   isExploreMode: false,
   mainLineData: null,
+  variations: [], // líneas alternativas guardadas (ver utils/variations.js)
   hasPgnEvaluations: false,
   isReviewRequested: false,
   startFen: null,
@@ -99,8 +101,13 @@ export const createGameSlice = (set, get) => ({
         result,
       ];
 
-      analysisBridge.cancel();
+      analysisBridge.cancelLive();
       get().trimAnalysisState(state.currentMoveIndex);
+
+      // Si ya se estaba en una variante, se conserva antes de que la nueva bifurcación la sustituya
+      const variations = state.isExploreMode
+        ? addVariation(state.variations, sansOf(mainLineData.history), sansOf(state.history), 'user')
+        : state.variations;
 
       set({
         game: gameCopy,
@@ -110,6 +117,7 @@ export const createGameSlice = (set, get) => ({
         arrows: [],
         isExploreMode: true,
         mainLineData,
+        variations,
       });
 
       playChessSound(result.captured || result.san?.includes('x') ? 'capture' : 'move');
@@ -126,8 +134,10 @@ export const createGameSlice = (set, get) => ({
     const targetIndex = state.mainLineData.branchIndex;
     const gameCopy = replayTo(state.mainLineData.history, targetIndex, state.startFen);
     const evalObj = state.mainLineData.evaluationHistory[targetIndex];
+    const variations = addVariation(state.variations, sansOf(state.mainLineData.history), sansOf(state.history), 'user');
 
     set({
+      variations,
       evaluationHistory: state.mainLineData.evaluationHistory,
       bestMoves: state.mainLineData.bestMoves,
       moveEvaluations: state.mainLineData.moveEvaluations,
@@ -143,6 +153,75 @@ export const createGameSlice = (set, get) => ({
     });
     playChessSound('move');
   },
+
+  /** Quita las últimas `count` jugadas de la línea actual (deshacer en el modo Jugar). */
+  truncateHistory: (count) => {
+    const state = get();
+    const newHistory = state.history.slice(0, Math.max(0, state.history.length - count));
+    const idx = newHistory.length - 1;
+    const gameCopy = replayTo(newHistory, idx, state.startFen);
+    set({
+      game: gameCopy,
+      fen: gameCopy.fen(),
+      history: newHistory,
+      currentMoveIndex: idx,
+      arrows: [],
+    });
+    playChessSound('move');
+  },
+
+  /** Carga una variante guardada como línea actual (la línea que se abandona se conserva). */
+  loadVariation: (id) => {
+    const state = get();
+    const variation = state.variations.find(v => v.id === id);
+    if (!variation) return;
+
+    const mainSnapshot = state.isExploreMode && state.mainLineData
+      ? state.mainLineData
+      : {
+        history: state.history,
+        evaluationHistory: state.evaluationHistory,
+        bestMoves: state.bestMoves,
+        moveEvaluations: state.moveEvaluations,
+        alternativeLines: state.alternativeLines,
+        branchIndex: state.currentMoveIndex,
+      };
+
+    const fullSans = [...variation.prefix, ...variation.moves];
+    const verbose = replaySans(fullSans, state.startFen);
+    if (!verbose) return;
+
+    const mainSans = sansOf(mainSnapshot.history);
+    const variations = state.isExploreMode
+      ? addVariation(state.variations, mainSans, sansOf(state.history), 'user')
+      : state.variations;
+
+    analysisBridge.cancelLive();
+    // Los datos de análisis válidos son los de la partida principal hasta la bifurcación
+    set({
+      evaluationHistory: mainSnapshot.evaluationHistory,
+      bestMoves: mainSnapshot.bestMoves,
+      moveEvaluations: mainSnapshot.moveEvaluations,
+      alternativeLines: mainSnapshot.alternativeLines,
+    });
+    get().trimAnalysisState(variation.prefix.length - 1);
+
+    const targetIndex = Math.min(variation.prefix.length, verbose.length - 1);
+    const gameCopy = replayTo(verbose, targetIndex, state.startFen);
+    set({
+      game: gameCopy,
+      fen: gameCopy.fen(),
+      history: verbose,
+      currentMoveIndex: targetIndex,
+      arrows: [],
+      isExploreMode: true,
+      mainLineData: { ...mainSnapshot, branchIndex: Math.max(-1, variation.prefix.length - 1) },
+      variations,
+    });
+    playChessSound('move');
+  },
+
+  deleteVariation: (id) => set((s) => ({ variations: s.variations.filter(v => v.id !== id) })),
 
   goToMove: (index) => {
     const state = get();

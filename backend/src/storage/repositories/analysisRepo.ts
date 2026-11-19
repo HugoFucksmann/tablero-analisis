@@ -14,6 +14,7 @@ export interface AnalysisEntry {
     color: string;
     win: number;           // 1: Win | 0: Draw | -1: Loss
     timeControl: string;
+    customStart?: boolean;
     white?: { accuracy: number | null } | null;
     black?: { accuracy: number | null } | null;
     accuracyByPhase: { phase: string; accuracy: number }[];
@@ -55,8 +56,8 @@ const stmts = {
         INSERT INTO analyses (
             id, gameId, username, createdAt, date, opening, eco, moveCount,
             color, win, timeControl, whiteAccuracy, blackAccuracy,
-            accuracyByPhase, labelCounts, advancedMetrics, opponent, gameDate
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            accuracyByPhase, labelCounts, advancedMetrics, opponent, gameDate, customStart
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             gameId = excluded.gameId, username = excluded.username, createdAt = excluded.createdAt,
             date = excluded.date, opening = excluded.opening, eco = excluded.eco,
@@ -64,7 +65,8 @@ const stmts = {
             timeControl = excluded.timeControl, whiteAccuracy = excluded.whiteAccuracy,
             blackAccuracy = excluded.blackAccuracy, accuracyByPhase = excluded.accuracyByPhase,
             labelCounts = excluded.labelCounts, advancedMetrics = excluded.advancedMetrics,
-            opponent = excluded.opponent, gameDate = excluded.gameDate
+            opponent = excluded.opponent, gameDate = excluded.gameDate,
+            customStart = excluded.customStart
     `),
 
     insertPhase: db.prepare(`INSERT INTO phase_accuracy (game_id, phase, accuracy) VALUES (?, ?, ?)`),
@@ -75,7 +77,7 @@ const stmts = {
             remaining_time, fen, start_fen, error_time_class
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
-    insertFullData: db.prepare(`INSERT OR REPLACE INTO analysis_full_data (game_id, full_json) VALUES (?, ?)`),
+    insertFullData: db.prepare(`INSERT OR REPLACE INTO analysis_full_data (analysis_id, full_json) VALUES (?, ?)`),
 
     deletePhases: db.prepare(`DELETE FROM phase_accuracy  WHERE game_id = ?`),
     deleteQuality: db.prepare(`DELETE FROM move_quality    WHERE game_id = ?`),
@@ -86,7 +88,11 @@ const stmts = {
     findById: db.prepare(`SELECT * FROM analyses WHERE id = ?`),
     // Order by gameDate (real match date) with fallback to date (analysis date) for old records
     findAll: db.prepare(`SELECT * FROM analyses ORDER BY COALESCE(gameDate, date) DESC LIMIT ? OFFSET ?`),
-    findFullData: db.prepare(`SELECT full_json FROM analysis_full_data WHERE game_id = ?`),
+    findFullData: db.prepare(`
+        SELECT f.full_json FROM analysis_full_data f
+        JOIN analyses a ON a.id = f.analysis_id
+        WHERE a.gameId = ?
+    `),
 
     // Lightweight query — only gameIds, no LIMIT. Used for the "analyzed" badge in GameImport.
     findAllGameIds: db.prepare(`SELECT gameId FROM analyses`),
@@ -153,6 +159,7 @@ export const AnalysisRepo = {
                 JSON.stringify(e.advancedMetrics || {}),
                 e.opponent ?? null,
                 e.gameDate ?? null,
+                e.customStart ? 1 : 0,
             );
 
             // Replace normalized sub-tables
@@ -189,7 +196,7 @@ export const AnalysisRepo = {
             }
 
             if (e.fullData) {
-                stmts.insertFullData.run(e.gameId, JSON.stringify(e.fullData));
+                stmts.insertFullData.run(e.id, JSON.stringify(e.fullData));
             }
         });
 

@@ -8,8 +8,10 @@
 1. **Fuente de Verdad Única** — El backend es ahora el único encargado de la lógica de ajedrez. El frontend ha sido limpiado de archivos duplicados como `evaluationRules.ts`, `openingService.ts` y `chessMath.ts`.
 2. **Coherencia de Versiones** — Aunque el front ya no tenga lógica, cualquier cambio en la clasificación o precisión debe documentarse aquí para que la UI sepa qué labels esperar.
 3. **El engine es una máquina de estados** — nunca envíes comandos UCI sin verificar el estado actual. Enviar `go` mientras está en `SEARCHING` corrompe la salida.
-4. **Cada sesión WebSocket tiene su propia instancia de engine** — no hay estado compartido entre clientes.
-5. **`cancel()` es la única forma segura de interrumpir** — no mates el proceso directamente.
+4. **Cada sesión WebSocket tiene sus propios motores** — uno para la evaluación en vivo, otro (lazy) para jugar contra el usuario con fuerza limitada, y un pool al analizar partidas o lotes. No hay estado compartido entre clientes.
+5. **`cancel()` / `cancel_live` son la única forma segura de interrumpir** — no mates el proceso directamente. `cancel_live` solo detiene la evaluación en vivo; `cancel` detiene también partida/lote, extracción y la búsqueda del bot.
+6. **El contrato vive en `shared/protocol.d.ts`** — cualquier mensaje nuevo se declara ahí, se valida en `messageValidator.ts` y se despacha en `messageHandlers.ts` (el tipo `Handlers` obliga a cubrir todos).
+7. **Las estadísticas personales solo cuentan jugadas del usuario** — `game_moves` guarda ambos bandos; filtra siempre con la condición `USER_MOVE` de `statsRepo.ts`.
 
 ---
 
@@ -17,7 +19,9 @@
 
 ```mermaid
 graph TD
-    Server[server.ts] --> MH[messageHandlers.ts]
+    Server[server.ts] --> MV[messageValidator.ts]
+    Server --> BK[backup.ts]
+    Server --> MH[messageHandlers.ts]
     MH --> AQ[analysisQueue.ts]
     MH --> PE[puzzleExtractor.ts]
     MH --> PS[puzzleStore.ts]
@@ -49,6 +53,8 @@ graph TD
 
     OS --> OB
     MC --> ER
+    MC --> BD[brilliantDetector.ts]
+    BK --> DB[db.ts]
     PS --> SS
     GS --> SS
     SS --> AR[analysisRepo.ts]
@@ -64,32 +70,41 @@ graph TD
 
 **Endpoint:** `ws://localhost:9001` — una instancia de Stockfish por conexión.
 
+> La lista completa y los tipos exactos están en `shared/protocol.d.ts`. Todo mensaje se valida antes de despacharse (forma, tipos y rangos; máx. 8 MB por mensaje; solo orígenes locales o `ALLOWED_ORIGINS`).
+
 ### Mensajes Entrantes (Cliente → Servidor)
 
 | `type` | Campos Requeridos | Campos Opcionales |
 | :--- | :--- | :--- |
 | `analyze_position` | `fen`, `moveIndex` | `threads`, `hash`, `multiPv`, `depth` |
-| `analyze_game` | `history`, `currentIndex`, `gameId` | `engineConfig: { depth, multiPv, threads, hash }`, `startFen`, `playerColor`, `win`, `timeControl`, `playerWhite`, `playerBlack`, `opponent`, `gameDate`, `times` |
-| `analyze_games` | `games: Array` (partidas a analizar) | `engineConfig: { depth, multiPv, threads, hash }` |
+| `analyze_game` | `history`, `currentIndex`, `gameId` | `engineConfig`, `startFen`, `playerColor`, `win`, `timeControl`, `playerWhite`, `playerBlack`, `opponent`, `gameDate`, `times` |
+| `analyze_games` | `games: Array` (`history` o `pgn`) | `engineConfig` |
 | `cancel` | — | — |
-| `clear_cache` | — | `gameId` |
-| `extract_puzzles` | `games: Array<{ pgn, history, gameId }>` | `engineConfig: { depth, threads, hash }` |
+| `cancel_live` | — | — |
+| `engine_move` | `fen` | `elo` (1320–3190), `skill` (0–20), `movetime`, `threads` |
+| `clear_cache` | `gameId` | — |
+| `extract_puzzles` | `games: Array<{ pgn, gameId, ... }>` | `engineConfig` |
+| `extract_puzzles_from_analyses` | `gameIds: string[]` | `engineConfig` |
 | `cancel_extraction` | — | — |
-| `get_puzzles` | — | — |
-| `delete_puzzle` | `id` | — |
-| `puzzle_solved` | `id` | — |
+| `get_puzzles` / `get_puzzle_game_ids` | — | — |
+| `delete_puzzle` / `puzzle_solved` / `puzzle_failed` | `id` | — |
 | `clear_puzzles` | — | — |
-| `get_stats` | — | `filters`, `requestId` |
+| `get_stats` | — | `filters: { username, time, duration, increment, start, count }`, `requestId` |
 | `get_stat_details` | `category` | `filters`, `requestId` |
 | `get_analyses` | — | `offset`, `limit` |
 | `get_analysed_ids` | — | — |
-| `delete_analyses` | `ids: string[]` | — |
+| `delete_analyses` | `ids: string \| string[]` | — |
 | `get_full_analysis` | `gameId` | — |
-| `get_move_explorer` | `fen` | — |
-| `get_book_moves` | `fen` | — |
+| `get_move_explorer` / `get_games_at_position` / `get_book_moves` | `fen` | — |
 | `get_server_config` | — | — |
 
-> **`puzzle_solved`:** Llama a `PuzzleStore.incrementSolved(id)` → delega a `SqliteStore.incrementPuzzleSolved(id)` para persistir el incremento de `solvedCount` directamente en la base de datos SQLite.
+> **`puzzle_solved` / `puzzle_failed`:** actualizan la repetición espaciada (`PuzzleRepo.recordAttempt`): un acierto suma racha y aleja el repaso (1, 3, 7, 14, 30, 60 días); un fallo reinicia la racha y deja el puzzle pendiente. `puzzle_solved` además incrementa `solvedCount`.
+
+> **`engine_move`:** usa un motor aparte del de evaluación en vivo. `elo` activa `UCI_LimitStrength`/`UCI_Elo`; `skill` usa `Skill Level` (para niveles por debajo de 1320 Elo); sin ninguno juega a máxima fuerza. Devuelve también la evaluación (`score`, `mate`) desde el punto de vista de quien mueve.
+
+### HTTP
+
+`GET /backup` descarga una copia consistente de la base (`db.backup`, segura con WAL). `POST /restore` recibe un `.sqlite`, valida tablas e integridad y **fusiona** con la base actual (`storage/backup.ts`): `INSERT OR REPLACE` de análisis y sus hijas (se reinsertan desde el archivo), `INSERT OR IGNORE` de puzzles (conserva el progreso local). Soporta respaldos con el esquema anterior de `analysis_full_data`.
 
 #### Schema: campo `history` en `analyze_game`
 Array de objetos generados por `chess.history({ verbose: true })` de chess.js:
@@ -121,17 +136,19 @@ Array<{
 | :--- | :--- | :--- |
 | `position_progress` | `{ score, mate, bestMove, moveIndex, lines: Line[] }` | Streaming del engine. `score` en escala −10 a 10. |
 | `position_result` | `{ score, mate, bestMove, moveIndex, lines: Line[] }` | Resultado final de posición única. |
-| `move_result` | `{ index, label, score, mate, bestMove, lines: Line[], isBook, errorTimeClass }` | Resultado por ply durante `analyze_game`. |
+| `move_result` | `{ index, label, isBook, errorTimeClass, moveTime, remainingTime, score?, mate?, bestMove?, lines? }` | Resultado por ply durante `analyze_game`. |
 | `opening_detected` | `{ openingName, ecoCode, openingPly, bookPlies: number[] }` | Metadatos de apertura. |
 | `complete` | `{ accuracy: { white: number, black: number }, accuracyByPhase: any[] }` | Precisión final de la partida. |
 | `status` | `{ running: boolean }` | Estado del engine. |
 | `progress` | `{ pct: number, label: string }` | Progreso general de la tarea actual. |
 | `cancelled` | — | Confirmación de cancelación de análisis. |
+| `engine_move_result` | `{ fen, move, score, mate }` | Jugada del motor de juego (UCI) y su evaluación para quien mueve. |
 | `puzzle_extraction_started` | `{ totalGames }` | Inicio del proceso de extracción masiva. |
 | `puzzle_game_done` | `{ gameIndex, total, extractedCount, totalExtracted }` | Notificación de fin de proceso de un juego individual. |
 | `puzzle_extraction_complete` | `{ totalExtracted }` | Fin de la tarea masiva de extracción. |
 | `extraction_cancelled` | — | Confirmación de cancelación de extracción. |
-| `puzzle_list` | `{ puzzles: Puzzle[] }` | Lista de puzzles guardados. |
+| `puzzle_list` | `{ puzzles: Puzzle[] }` | Lista de puzzles guardados (con `attempts`, `failures`, `streak`, `nextReviewAt`). |
+| `puzzle_game_ids` | `{ ids }` | IDs de partidas que ya tienen puzzles. |
 | `puzzle_deleted` | `{ id, success }` | Confirmación de borrado. |
 | `puzzles_cleared` | — | Confirmación de limpieza de librería. |
 | `error` | `{ message: string, requestId?: string }` | Notificación de error. |
@@ -140,16 +157,16 @@ Array<{
 | `batch_analysis_game_complete`| `{ gameIndex, accuracy }` | Fin de análisis de un juego del lote. |
 | `batch_analysis_complete` | `{ total }` | Fin de todo el análisis en lote. |
 | `batch_analysis_cancelled` | — | Cancelación del análisis en lote. |
-| `batch_move_result` | `{ gameIndex, index, label, isBook, errorTimeClass }` | Resultado por jugada en análisis por lote. |
 | `stats_data` | `{ requestId, stats }` | Datos de estadísticas agregadas del dashboard. |
 | `stat_details_data` | `{ requestId, category, details }` | Detalle específico por categoría de estadística. |
 | `analyses_list` | `{ analyses, offset, limit, total }` | Partidas analizadas paginadas en memoria. |
 | `analysed_ids` | `{ ids }` | Listado rápido de IDs de partidas ya analizadas. |
 | `analyses_deleted` | `{ ids }` | Confirmación de eliminación en lote de análisis. |
 | `full_analysis_data` | `{ gameId, data }` | JSON del análisis completo de una partida. |
-| `move_explorer_data` | `{ fen, whitePerspective: any, blackPerspective: any }` | Frecuencias y resultados agregados para un FEN. |
+| `move_explorer_data` | `{ fen, whitePerspective, blackPerspective }` | Frecuencias y resultados agregados para un FEN. |
+| `games_at_position` | `{ fen, games }` | Partidas propias que pasaron por el FEN (`gameId`, `ply`, `moveSan`, rival, resultado, fecha). |
 | `book_moves` | `{ fen, moves, opening, eco, source }` | Opciones de teoría desde el libro local. |
-| `server_config` | `{ openingSource, bookSize }` | Parámetros del servidor activo al conectar. |
+| `server_config` | `{ openingSource, bookSize, cpuCount, totalMemMB, freeMemMB }` | Parámetros del servidor y recursos de la máquina. |
 
 #### Schema: tipo `Line`
 ```typescript
@@ -183,10 +200,16 @@ Array<{
 - Al terminar, se calcula la precisión global por bando.
 
 ### 3. Extracción de Puzzles
-- Se analizan los juegos con `multiPv: 2`.
+- Fuente: `extract_puzzles` (PGN/historial) o `extract_puzzles_from_analyses` (reconstruye el historial desde `fullData.historySan`).
+- Si la partida ya fue analizada a profundidad suficiente se reutilizan sus evaluaciones (*Database Bypass*); los candidatos se validan con `multiPv: 2`.
 - Se identifican errores (`Error` o `Error grave`) con pérdida de WP >= 0.15.
 - Se guarda el puzzle con la posición **después** del error (FEN donde el rival debe castigar).
 - La `solutionSequence` se extrae de la PV del engine (hasta 6 movimientos).
+
+### 4. Modo Jugar (`engine_move`)
+- `AnalysisQueue.playMove` usa un `StockfishProcess` propio (lazy), distinto del de evaluación en vivo, para que su fuerza limitada no afecte al análisis.
+- Antes de cada búsqueda se aplica `setStrength({ elo | skill | ninguno })`; la búsqueda usa `go depth 30 movetime N` (N acotado a 100–10 000 ms).
+- Una nueva petición aborta la anterior (`_playAc`); `cancel` también la detiene. El cliente decide la pausa mínima antes de jugar la respuesta, los relojes y el fin de partida.
 
 ---
 
@@ -216,7 +239,7 @@ DEAD ──────────► STARTING
 
 ## 🛡️ Mutex y Cancelación Asíncrona
 
-`AnalysisQueue` y `PuzzleExtractor` implementan un **mutex de sesión única**. Llamar a `cancel()` garantiza:
+`AnalysisQueue` mantiene controladores separados para lo **en vivo** (`_liveAc`), la **partida/lote** (`_jobAc`) y el **modo Jugar** (`_playAc`); `PuzzleExtractor` tiene el suyo. `cancel_live` solo toca el primero, así mover el tablero nunca interrumpe un lote. Llamar a `cancel()` (total) garantiza:
 1. Envía `stop` a Stockfish si está en `SEARCHING` de forma síncrona.
 2. Utiliza `AbortController` para interrumpir orquestaciones async en curso (`GameAnalysisCoordinator` o el loop de Puzzles).
 3. El engine queda en `IDLE` listo para el siguiente comando.
@@ -266,14 +289,14 @@ Calculados sobre la pérdida de WP (`wpBefore - wpAfter`).
 
 | Label | Condición |
 | :--- | :--- |
-| Brillante | Ganancia WP ≥ 0.05 AND es el mejor movimiento del engine |
-| Mejor | Es el mejor movimiento del engine (pero sin ganancia crítica) |
+| Mejor | Es el mejor movimiento del engine |
 | Excelente | Pérdida WP ≤ 0.02 |
 | Bueno | Pérdida WP ≤ 0.05 |
 | Imprecisión | Pérdida WP ≤ 0.10 |
 | Error | Pérdida WP ≤ 0.20 |
 | Error grave | Pérdida WP > 0.20 |
 | Libro | Marcado por el OpeningService |
+| Brillante | No sale de aquí: lo asigna `MoveClassifier` a una jugada `Mejor`/`Excelente` que `brilliantDetector.ts` reconoce como sacrificio con compensación |
 
 ### Cálculo de Precisión
 No es un promedio simple. Usa una función de decaimiento exponencial sobre la pérdida de centipeones (derivada de WP) y combina media aritmética y armónica para penalizar errores graves más fuertemente.
@@ -318,9 +341,26 @@ CREATE TABLE IF NOT EXISTS puzzles (
     attackedSquares      INTEGER,           -- Cantidad de casillas bajo ataque simultáneo
     isOnlyMove           INTEGER,           -- 1 si la primera jugada de la solución era la única salvación, 0 si no
     criticalityGap       REAL,              -- Distancia de evaluación con el segundo mejor movimiento
-    tacticalMotifs       TEXT               -- Motivos tácticos detectados en formato JSON array stringified
+    tacticalMotifs       TEXT,              -- Motivos tácticos detectados en formato JSON array stringified
+
+    -- Repetición espaciada (SRS)
+    attempts             INTEGER DEFAULT 0, -- Veces entrenado
+    failures             INTEGER DEFAULT 0, -- Veces fallado
+    streak               INTEGER DEFAULT 0, -- Aciertos seguidos
+    nextReviewAt         TEXT               -- Próximo repaso (ISO); null = nunca repasado
 );
 ```
+
+---
+
+### Otras tablas relevantes
+
+- `analyses` — una fila por partida analizada (`id` UUID, `gameId` de la plataforma `UNIQUE`). Columnas añadidas: `customStart` (1 si parte de un FEN distinto al estándar) y `timeControl` en forma canónica `<base>+<incremento>` en segundos.
+- `game_moves` — una fila por ply y partida (**ambos bandos**): `label`, `move_time`, `remaining_time`, `error_time_class`, `fen`, `start_fen`.
+- `analysis_full_data` — `analysis_id → analyses(id)` (`ON DELETE CASCADE`) con el JSON completo, incluidos `moveTimes` y `remainingTimes`.
+- `puzzles.gameId` **no** tiene FK a propósito: los puzzles pueden venir de partidas sin analizar y sobreviven al borrado de su análisis.
+- Migraciones por `PRAGMA user_version`: v1 consolida el esquema histórico; v2 unifica la FK de `analysis_full_data`; v3 añade `customStart`; v4 añade las columnas SRS.
+- Las estadísticas se calculan sobre un conjunto filtrado en la tabla temporal `scope_ids`, cargada y vaciada dentro de `withScope` (síncrono).
 
 ---
 
@@ -329,6 +369,8 @@ CREATE TABLE IF NOT EXISTS puzzles (
 | Función | Descripción |
 | :--- | :--- |
 | `buildPositions(history)` | Repite los movimientos para generar el array de FENs de toda la partida. |
+| `extractTimes(pgn)` | Lee los `[%clk]` (formatos Lichess y Chess.com con décimas). |
+| `computeMoveTime(times, ply, inc)` / `parseIncrement(tc)` | Tiempo pensado = reloj propio previo − actual + incremento. |
 | `buildAnalysisOrder(total, currentIndex)` | Devuelve índices priorizados: `[currentIndex, currentIndex+1, currentIndex-1, ...resto 0..N]`. |
 | `mapLines(lines, isBlackTurn)` | Normaliza las líneas del engine a Visual Score para el frontend. |
 
@@ -340,8 +382,9 @@ CREATE TABLE IF NOT EXISTS puzzles (
 | :--- | :--- |
 | Crash del proceso Stockfish | `engineProcess.ts` emite `onDied` → intenta respawn → error al cliente si falla |
 | FEN inválido | Validado en `stockfishProcess.ts` → `{ type: 'error', message: '...' }` |
-| Engine colgado | `cancel()` es el único fallback. No hay timeout automático. |
-| API de apertura no responde | Continúa sin datos de apertura tras 2 reintentos fallidos |
+| Engine colgado | Timeout de handshake UCI (15 s) y *watchdog* de búsqueda (`movetime` + 10 s): se mata el motor y se rechaza la petición. `cancel()` sigue siendo el modo normal de interrumpir. |
+| Mensaje inválido | `messageValidator` responde `{ type: 'error', message }` sin despachar |
+| Origen no permitido | El WebSocket y el HTTP responden 401/403 |
 | `games` sin `history` ni `pgn` válido | El juego se omite silenciosamente en `extract_puzzles` |
 | Cliente desconectado | Kill del proceso hijo y liberación de recursos de la sesión |
 
@@ -350,5 +393,5 @@ CREATE TABLE IF NOT EXISTS puzzles (
 ## 🏁 Secuencia de Startup
 
 1. `openingBook.ts` indexa los archivos TSV en memoria. Debe completarse antes de servir cualquier `analyze_game`.
-2. `service.ts` inicia el servidor WebSocket en `ws://localhost:9001`.
+2. `server.ts` inicia el servidor HTTP + WebSocket en `127.0.0.1:9001` y ejecuta el chequeo de integridad de la base.
 3. Los procesos Stockfish se crean **lazy** en la primera conexión, no en el startup.

@@ -1,0 +1,222 @@
+/* ── Diseño móvil ────────────────────────────────────────────────────────────
+   Pantalla fija (sin scroll de página):
+     barra superior  → menú de modos desplegable
+     tablero         → siempre visible mientras se usa (se oculta en Estadísticas, etc.)
+     contenido       → panel del modo, con su propio scroll
+     dock            → navegación de jugadas
+   ──────────────────────────────────────────────────────────────────────── */
+
+.m-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+/* ── Barra superior ──────────────────────────────────────────────────── */
+.m-topbar {
+  position: relative;
+  z-index: 60;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 2.75rem;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.m-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 2rem;
+  padding: 0 var(--space-2);
+  margin-left: calc(var(--space-2) * -1);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--accent-primary);
+  font-size: var(--text-md);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.m-mode-btn:active, .m-mode-btn.open { background: var(--accent-glow-muted); }
+.m-chevron { transition: transform 0.18s ease; opacity: 0.7; }
+.m-mode-btn.open .m-chevron { transform: rotate(180deg); }
+
+.m-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.m-icon-btn:active { background: rgba(255, 255, 255, 0.06); color: var(--text-primary); }
+
+/* Menú de modos: se superpone al tablero */
+.m-backdrop {
+  position: fixed;
+  inset: 2.75rem 0 0 0;
+  z-index: 55;
+  background: rgba(0, 0, 0, 0.55);
+  animation: mFade 0.15s ease-out;
+}
+
+.m-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-1) 0 var(--space-2);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.6);
+  animation: mDrop 0.18s ease-out;
+}
+
+.m-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  padding: 0.85rem var(--space-5);
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.m-menu-item:active { background: rgba(255, 255, 255, 0.05); }
+.m-menu-item.active { color: var(--accent-primary); background: var(--accent-glow-muted); }
+.m-menu-check { margin-left: auto; }
+
+@keyframes mFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mDrop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Tablero fijo ────────────────────────────────────────────────────── */
+.m-board-area {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  background: radial-gradient(ellipse 80% 70% at 50% 50%, #2b2b31 0%, #1b1b20 60%, #101013 100%);
+}
+
+.m-board-area.hidden { display: none; }
+
+/* El ancho se limita por la altura para que en tablets el tablero no se coma la pantalla */
+.m-board {
+  width: min(100%, 50dvh);
+  padding: var(--space-1) var(--space-1) 0;
+}
+
+/* ── Contenido del modo (scroll propio) ──────────────────────────────── */
+.m-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-tertiary);
+}
+
+.m-content > .side-panels {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  border-left: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Los paneles toman su altura natural y es el contenido el que hace scroll; las listas largas
+   llevan un tope para que no empujen al resto fuera de la pantalla. */
+.m-content .side-panels > .panel-container {
+  flex: 0 0 auto !important;
+  min-height: 0 !important;
+}
+
+.m-content .move-history-panel > div:not(.panel-header),
+.m-content .explorer-panel > div:not(.panel-header),
+.m-content .import-panel > div:not(.panel-header) {
+  flex: none;
+  overflow: visible;
+}
+
+.m-content .move-list-container { flex: none; overflow: visible; }
+.m-content .move-list-body { flex: none; max-height: 15rem; }
+.m-content .explorer-container-v2 { height: auto; }
+.m-content .explorer-scroll-area { flex: none; max-height: 16rem; }
+.m-content .gi-list { flex: none; max-height: 20rem; }
+
+/* El detalle de estadísticas ocupa todo el contenido */
+.m-content > .stats-detail-container { border-radius: 0; border: none; }
+
+/* ── Dock inferior ───────────────────────────────────────────────────── */
+.m-dock {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: var(--space-1);
+  padding: 2px var(--space-2) calc(2px + env(safe-area-inset-bottom, 0px));
+  background: var(--bg-secondary);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.m-dock-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
+  max-width: 4rem;
+  height: 2.75rem;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.m-dock-btn:active:not(:disabled) { background: rgba(255, 255, 255, 0.08); color: var(--text-primary); }
+.m-dock-btn.active { color: var(--accent-primary); background: var(--accent-glow-muted); }
+.m-dock-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+
+.m-dock-sep { width: 1px; height: 1.4rem; background: rgba(255, 255, 255, 0.08); flex: 0 0 auto; }
+
+/* Anula las reglas responsive antiguas del contenedor (scroll de página) en el diseño móvil */
+.dashboard-container.mobile {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* ── Compactación del tablero y los controles en pantallas pequeñas ───── */
+.m-board .board-container { gap: 2px; }
+.m-board .board-main-layout { gap: 3px; }
+.m-board .player-area { min-height: 1.9rem; padding: 2px var(--space-2); }
+.m-board .eval-bar-aside { padding: 0 var(--space-2); }
+.m-board .horizontal .eval-bar-container { height: 0.5rem; }
+
+/* La navegación ya está en el dock: en el panel solo quedan sonido, jugar contra el bot y girar */
+.m-content .navigation-group { display: none; }
+.m-content .board-controls-container { justify-content: flex-start; }

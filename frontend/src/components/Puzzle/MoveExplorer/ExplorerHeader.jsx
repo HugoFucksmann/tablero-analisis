@@ -1,7 +1,6 @@
 import React from 'react';
-import { BarChart2, Cpu } from 'lucide-react';
+import { BarChart2 } from 'lucide-react';
 import './ExplorerHeader.css';
-import { EVAL_CONFIG } from '../../../constants/chessConstants.jsx';
 
 export const ExplorerHeader = ({ 
   ecoCode, 

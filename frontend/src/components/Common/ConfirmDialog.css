@@ -1,0 +1,44 @@
+.cd-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.cd-box {
+  max-width: 380px;
+  width: calc(100% - 32px);
+  padding: 20px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+}
+
+.cd-message {
+  margin: 0 0 16px;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.cd-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cd-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.cd-btn.primary { background: var(--accent-primary); border-color: var(--accent-primary); color: #000; }
+.cd-btn.danger { background: var(--error-primary); border-color: var(--error-primary); color: #fff; }

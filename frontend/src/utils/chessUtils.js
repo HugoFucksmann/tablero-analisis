@@ -1,5 +1,5 @@
 import { Chess } from 'chess.js';
-import { PIECE_ICONS, MOVE_LABELS } from '../constants/chessConstants';
+import { PIECE_ICONS } from '../constants/chessConstants';
 
 export function replayTo(history, index, startFen = null) {
   const g = startFen ? new Chess(startFen) : new Chess();

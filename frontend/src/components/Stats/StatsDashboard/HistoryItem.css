@@ -110,3 +110,30 @@
 }
 
 
+
+.hi-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  opacity: 0;
+  transition: var(--transition);
+}
+
+.history-item:hover .hi-delete-btn,
+.hi-delete-btn:focus-visible {
+  opacity: 1;
+}
+
+.hi-delete-btn:hover {
+  color: var(--error-primary);
+  background: var(--error-bg);
+}
+
+.hi-puzzle-badge {
+  display: inline-flex;
+  align-items: center;
+  color: var(--purple-primary);
+}

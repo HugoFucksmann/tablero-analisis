@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useGameStore } from '../../store/useGameStore';
 import { useShallow } from 'zustand/react/shallow';
-import { ChevronLeft, ChevronRight, AlertTriangle, Clock, Zap, Brain, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertTriangle, Clock, Zap, Brain, Sparkles, Timer } from 'lucide-react';
 import { TimeErrorBreakdown } from './TimeErrorBreakdown';
 import './EvaluationGraph.css';
 
@@ -14,6 +14,8 @@ const TIME_CLASS_LABELS = {
 const WIDTH = 400;
 const HEIGHT = 80;
 const PADDING = 6;
+const TIME_LANE_H = 34;    // carril propio bajo la curva de evaluación para las barras de tiempo
+const TIME_BAR_MIN_H = 3;  // altura mínima: toda jugada con dato de reloj es visible
 
 const MISTAKE_STYLES = {
   'Error grave': { color: '#e05555', symbol: '??' },
@@ -50,11 +52,12 @@ const MistakeIcon = ({ mistakeInfo }) => {
 
 export const EvaluationGraph = () => {
   const [onlyMyMistakes, setOnlyMyMistakes] = useState(false);
+  const [showTimes, setShowTimes] = useState(true);
 
   const {
     evaluationHistory, currentMoveIndex, history, goToMove,
     accuracy, accuracyByPhase, gameResult, isAnalyzing,
-    moveEvaluations, errorTimeClasses, analysisReady, playerColor,
+    moveEvaluations, errorTimeClasses, analysisReady, playerColor, moveTimes,
   } = useGameStore(useShallow(state => ({
     evaluationHistory: state.evaluationHistory,
     currentMoveIndex: state.currentMoveIndex,
@@ -68,9 +71,31 @@ export const EvaluationGraph = () => {
     errorTimeClasses: state.errorTimeClasses,
     analysisReady: state.analysisReady,
     playerColor: state.playerColor,
+    moveTimes: state.moveTimes,
   })));
 
   const total = history.length;
+  const hasTimes = useMemo(() => Object.keys(moveTimes || {}).length > 0, [moveTimes]);
+
+  // Barras de tiempo pensado por jugada (blancas/negras en tonos distintos)
+  const showLane = showTimes && hasTimes;
+  const totalH = HEIGHT + (showLane ? TIME_LANE_H : 0);
+
+  const timeBars = useMemo(() => {
+    if (!showLane) return [];
+    const entries = Object.entries(moveTimes).map(([idxStr, t]) => [parseInt(idxStr, 10), t]);
+    // Escala relativa a la partida: referencia = percentil 90 (mín. 8 s) y raíz cuadrada para que
+    // las jugadas rápidas (la mayoría) se distingan de las lentas sin quedar aplastadas.
+    const sortedTimes = entries.map(([, t]) => t).sort((a, b) => a - b);
+    const p90 = sortedTimes[Math.min(sortedTimes.length - 1, Math.floor(sortedTimes.length * 0.9))] ?? 0;
+    const ref = Math.max(8, p90);
+    const maxH = TIME_LANE_H - 8;
+    const barW = Math.max(2, ((WIDTH - 2 * PADDING) / Math.max(total, 1)) * 0.75);
+    return entries.map(([idx, t]) => {
+      const h = Math.min(maxH, Math.max(TIME_BAR_MIN_H, Math.sqrt(Math.min(t, ref) / ref) * maxH));
+      return { idx, t, h, x: getX(idx, total) - barW / 2, w: barW, white: idx % 2 === 0, cls: errorTimeClasses?.[idx] };
+    });
+  }, [showLane, moveTimes, total, errorTimeClasses]);
   const midY = getY(0);
 
   const displayScore = useMemo(() => {
@@ -199,6 +224,17 @@ export const EvaluationGraph = () => {
           {isAnalyzing && <span className="graph-analyzing-dot" title="Analizando..." />}
         </div>
 
+        {analysisReady && hasTimes && (
+          <button
+            className={`graph-nav-btn ${showTimes ? 'active' : ''}`}
+            title={showTimes ? 'Ocultar tiempo por jugada' : 'Mostrar tiempo por jugada'}
+            aria-pressed={showTimes}
+            onClick={() => setShowTimes(v => !v)}
+          >
+            <Timer size={16} />
+          </button>
+        )}
+
         {/* Navegación de errores — sin caja/botón switch, solo contador y flechas */}
         {analysisReady && mistakeIndices.length > 0 && (
           <div className="graph-mistake-nav">
@@ -240,8 +276,8 @@ export const EvaluationGraph = () => {
 
       <svg
         width="100%"
-        height={HEIGHT}
-        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        height={totalH}
+        viewBox={`0 0 ${WIDTH} ${totalH}`}
         preserveAspectRatio="none"
         className="graph-svg"
         onClick={handleSvgClick}
@@ -267,6 +303,18 @@ export const EvaluationGraph = () => {
         <path d={areaPath} fill="url(#evalGradientBelow)" clipPath="url(#clipBelow)" />
 
         <line x1={PADDING} y1={midY} x2={WIDTH - PADDING} y2={midY} className="baseline" />
+
+        {showLane && <line x1={PADDING} y1={HEIGHT} x2={WIDTH - PADDING} y2={HEIGHT} className="time-lane-line" />}
+
+        {timeBars.map(({ idx, t, h, x, w, white, cls }) => (
+          <rect
+            key={`time-${idx}`}
+            x={x} y={totalH - 4 - h} width={w} height={h} rx={0.8}
+            className={`time-bar ${white ? 'white' : 'black'} ${cls ? 'is-error' : ''}`}
+          >
+            <title>{`Jugada ${idx + 1}: ${t}s${cls ? ` - ${TIME_CLASS_LABELS[cls] || cls}` : ''}`}</title>
+          </rect>
+        ))}
 
         {sorted.length > 1 && (
           <polyline points={linePoints.join(' ')} className="eval-line" />
@@ -303,7 +351,7 @@ export const EvaluationGraph = () => {
         {currentMoveIndex >= 0 && (
           <line
             x1={getX(currentMoveIndex, total)} y1={PADDING}
-            x2={getX(currentMoveIndex, total)} y2={HEIGHT - PADDING}
+            x2={getX(currentMoveIndex, total)} y2={totalH - PADDING}
             className="current-marker"
           />
         )}

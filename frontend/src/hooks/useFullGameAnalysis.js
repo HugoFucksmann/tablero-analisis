@@ -51,7 +51,7 @@ export const useFullGameAnalysis = () => {
                     }
                 }));
             },
-            onMoveResult: ({ index, score, mate, label, bestMove, lines, errorTimeClass }) => {
+            onMoveResult: ({ index, score, mate, label, bestMove, lines, errorTimeClass, moveTime, remainingTime }) => {
                 // Batch move results
                 useGameStore.setState((state) => {
                     const updates = {};
@@ -76,6 +76,12 @@ export const useFullGameAnalysis = () => {
                             ...state.errorTimeClasses,
                             [index]: errorTimeClass
                         };
+                    }
+                    if (typeof moveTime === 'number') {
+                        updates.moveTimes = { ...state.moveTimes, [index]: moveTime };
+                    }
+                    if (typeof remainingTime === 'number') {
+                        updates.remainingTimes = { ...state.remainingTimes, [index]: remainingTime };
                     }
                     if (bestMove) {
                         updates.bestMoves = {

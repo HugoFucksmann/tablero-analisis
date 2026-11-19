@@ -2,6 +2,17 @@
 .move-explorer-view .explorer-section {
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+/* Maestros (Lichess): sección compacta, con scroll propio, para dejar altura a tus partidas */
+.move-explorer-view .explorer-section.masters {
+  flex: 0 1 7.5rem;
+}
+
+.move-explorer-view .explorer-section.masters .section-header {
+  padding-top: 8px;
 }
 
 .move-explorer-view .explorer-section:not(:last-child) {
@@ -10,7 +21,8 @@
 
 /* ── Cabecera de sección ── */
 .move-explorer-view .section-header {
-  padding: 16px 20px 8px;
+  flex-shrink: 0;
+  padding: 12px var(--gutter, 20px) 6px;
   font-size: 0.65rem;
   font-weight: 900;
   color: #444;
@@ -43,14 +55,17 @@
 .move-explorer-view .moves-list {
   display: flex;
   flex-direction: column;
-  padding: 4px 0 12px;
+  padding: 2px 0 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .move-explorer-view .move-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 6px 20px;
+  padding: 6px var(--gutter, 20px);
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   border-bottom: 1px solid rgba(255, 255, 255, 0.01);

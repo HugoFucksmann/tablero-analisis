@@ -63,9 +63,11 @@ body.is-resizing {
   justify-content: center;
   overflow: hidden;
   position: relative;
-  background: radial-gradient(circle at center,
-      var(--accent-glow-muted) 0%,
-      transparent 70%);
+  /* Fondo del tablero: foco de luz gris neutro que se oscurece hacia los bordes (sin tintes) */
+  background: radial-gradient(ellipse 70% 65% at 50% 50%, #2b2b31 0%, #1b1b20 55%, #101013 100%);
+  border: none;
+  border-radius: 0;
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.03);
 }
 
 
@@ -90,15 +92,15 @@ body.is-resizing {
   flex-direction: column;
   gap: 0;
   height: 100%;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto; /* solo si el viewport es tan bajo que ni los mínimos caben */
+  scrollbar-width: thin;
   container-type: inline-size;
   container-name: sidebar;
+  /* Margen lateral común de todo el contenido del sidebar (cabeceras, gráficos, listas) */
+  --gutter: var(--space-5);
   background: var(--bg-tertiary);
   border-left: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.side-panels::-webkit-scrollbar {
-  display: none;
 }
 
 @container sidebar (min-width: 0px) {
@@ -136,14 +138,14 @@ body.is-resizing {
   background: transparent;
   border-radius: 0;
   transition: var(--transition);
-  flex-shrink: 0;
-  /* Por defecto no se encogen para no solaparse */
-  min-height: fit-content;
+  /* Altura según contenido; cada panel abierto define cómo cede espacio (ver más abajo) */
+  flex: 0 0 auto;
+  min-height: 0;
 }
 
 .panel-container.collapsed {
-  flex-grow: 0 !important;
-  flex-shrink: 0 !important;
+  flex: 0 0 auto !important;
+  min-height: 0 !important;
 }
 
 .panel-container:last-child {
@@ -161,7 +163,7 @@ body.is-resizing {
   cursor: pointer;
   user-select: none;
   flex-shrink: 0;
-  padding: var(--space-3) var(--space-4) var(--space-3) var(--space-6);
+  padding: var(--space-3) var(--gutter);
   background: var(--bg-secondary);
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
@@ -239,7 +241,7 @@ body.is-resizing {
 .top-global-bar {
   display: flex;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4) var(--space-3) var(--space-6);
+  padding: var(--space-3) var(--gutter);
   background: var(--bg-secondary);
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
@@ -374,46 +376,45 @@ body.is-resizing {
 }
 
 /*
-  flex-grow:3 + min-height:0: recibe 3 partes del espacio libre
-  y puede contraerse todo lo necesario. El scroll ocurre en
-  .move-list-body (MoveList.css), no aquí.
+  Altura de los paneles del sidebar: cada uno ocupa lo que pide su contenido (flex-basis: auto).
+  Si todos abiertos no caben, ceden espacio según su factor de encogimiento (flex-shrink):
+  mayor factor = cede antes. Prioridad: Historial (1) > Explorador (3) > Importar (6).
+  Los mínimos evitan que un panel quede inutilizable; el scroll ocurre dentro de cada uno.
+  Si sobra espacio, lo absorbe Importar (su lista es la más larga).
 */
 .move-history-panel:not(.collapsed) {
-  flex-grow: 1;
-  flex-shrink: 1;
-  min-height: 150px;
-}
-
-.move-history-panel>div:not(.panel-header) {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
+  flex: 0 1 auto;
+  min-height: 5rem;
 }
 
 .explorer-panel:not(.collapsed) {
-  flex-grow: 0;
-  flex-shrink: 1;
-  max-height: 50%;
+  flex: 0 3 auto;
+  min-height: 10rem;
+}
+
+.import-panel:not(.collapsed) {
+  flex: 1 6 auto;
+  min-height: 8rem;
+}
+
+.move-history-panel > div:not(.panel-header),
+.explorer-panel > div:not(.panel-header),
+.import-panel > div:not(.panel-header) {
+  flex: 1 1 auto;
   min-height: 0;
 }
 
-.explorer-panel>div:not(.panel-header) {
-  flex: 1;
-  min-height: 0;
+.move-history-panel > div:not(.panel-header) {
+  overflow: hidden;
+}
+
+.explorer-panel > div:not(.panel-header) {
   display: flex;
   flex-direction: column;
 }
 
 .import-panel {
-  flex-shrink: 0;
-}
-
-.import-panel:not(.collapsed) {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  flex-shrink: 1;
-  min-height: 100px;
+  background: transparent;
 }
 
 @media (max-width: 1440px) {

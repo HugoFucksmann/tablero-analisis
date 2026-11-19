@@ -7,7 +7,7 @@ const SNAPSHOT_KEYS = [
   // partida
   'game', 'fen', 'history', 'currentMoveIndex', 'gameHeaders', 'pgnCommentsByIndex', 'arrows',
   'highlights', 'isExploreMode', 'mainLineData', 'hasPgnEvaluations', 'isReviewRequested',
-  'startFen', 'explorerData', 'mastersData', 'gameId',
+  'startFen', 'explorerData', 'mastersData', 'gameId', 'variations',
   // análisis
   'evaluation', 'evaluationHistory', 'moveEvaluations', 'bestMoves', 'alternativeLines',
   'errorTimeClasses', 'analysisProgress', 'analysisLabel', 'analysisReady', 'analysisRequestId',
@@ -24,10 +24,12 @@ export const createUISlice = (set, get) => ({
   playerElos: { white: null, black: null },
   gamePhase: 'Opening',
   showTokenInput: false,
+  isAutoPlaying: false,
   boardOrientation: 'white',
   playerColor: 'white',
   gameId: 0,
 
+  setAutoPlaying: (v) => set({ isAutoPlaying: v }),
   setShowTokenInput: (v) => set({ showTokenInput: v }),
   setGameId: (id) => set({ gameId: id }),
   setBoardOrientation: (orientation) => set({ boardOrientation: orientation }),
@@ -44,36 +46,45 @@ export const createUISlice = (set, get) => ({
   }),
   
   appMode: 'analysis',
-  // Foto del estado previo a entrar en Puzzles (null fuera de ese modo).
+  // Foto del estado previo a entrar en un modo que usa el tablero para otra cosa (null en el resto).
   preGameSnapshot: null,
 
   setAppMode: (mode) => {
-    const { appMode: prev, preGameSnapshot } = get();
+    const { appMode: prev } = get();
     if (prev === mode) return;
 
-    if (mode === 'puzzle') {
-      // Entrar a Puzzles: guardar la partida actual antes de que el reproductor la reemplace.
-      set({ preGameSnapshot: pickState(get()), appMode: mode, explorerMode: false });
-      return;
-    }
+    // Puzzles y Jugar "toman prestado" el tablero: al entrar se guarda la partida/análisis en curso
+    // y al salir se restaura, para que Análisis y Explorador vuelvan exactamente a donde estaban.
+    const borrows = (m) => m === 'puzzle' || m === 'play';
 
-    if (prev === 'puzzle') {
-      // Salir de Puzzles: descartar el tablero del puzzle y recuperar la partida anterior.
-      analysisBridge.cancel();
+    if (borrows(prev)) {
+      const { preGameSnapshot } = get();
+      analysisBridge.cancelLive();
       set({
         ...(preGameSnapshot ?? {}),
         isAnalyzing: false,
         puzzleState: null,
         preGameSnapshot: null,
-        appMode: mode,
+        appMode: borrows(mode) ? 'analysis' : mode,
         explorerMode: mode === 'explorer',
       });
+      if (prev === 'play') get().resetPlay(); // abandona la partida y vuelve a la configuración
+    }
+
+    if (borrows(mode)) {
+      const startFen = mode === 'play' ? get().play.startFen : null;
+      set({ preGameSnapshot: pickState(get()), appMode: mode, explorerMode: false });
+      if (mode === 'play') {
+        // El tablero muestra la posición elegida (la del análisis o la inicial) hasta empezar
+        get().resetPlay(startFen);
+        get().loadFen(startFen ?? 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+      }
       return;
     }
 
-    set({ appMode: mode, explorerMode: mode === 'explorer' });
+    if (!borrows(prev)) set({ appMode: mode, explorerMode: mode === 'explorer' });
   },
-  
+
   puzzleState: null,
   setPuzzleState: (updater) => set((state) => ({ 
     puzzleState: typeof updater === 'function' ? updater(state.puzzleState) : updater 

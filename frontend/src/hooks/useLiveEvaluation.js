@@ -12,6 +12,8 @@ export const useLiveEvaluation = () => {
     const setBestMoveForIndex = useGameStore(state => state.setBestMoveForIndex);
     const setAlternativeLinesForIndex = useGameStore(state => state.setAlternativeLinesForIndex);
     const appMode = useGameStore(state => state.appMode);
+    const isBatchRunning = useGameStore(state => !!state.batchStatus || !!state.extractionStatus);
+    const playShowEval = useGameStore(state => state.play.showEval);
     
     const [isConnected, setIsConnected] = useState(backendService.isConnected);
 
@@ -30,7 +32,14 @@ export const useLiveEvaluation = () => {
         // Evitar interrumpir un análisis de partida completa en curso
         const isFullGameAnalysisRunning = state.isReviewRequested && !state.analysisReady;
 
-        if (currentMoveIndex < -1 || isFullGameAnalysisRunning) return;
+        // Pausar mientras corre un lote (evita contención de CPU)
+        if (currentMoveIndex < -1 || isFullGameAnalysisRunning || isBatchRunning) return;
+
+        // Posición ya evaluada por el análisis completo: no relanzar Stockfish
+        if (state.analysisReady && state.evaluationHistory[currentMoveIndex]?.score !== undefined
+            && state.alternativeLines?.[currentMoveIndex]?.length) {
+            return;
+        }
 
         let isActive = true;
 
@@ -70,7 +79,7 @@ export const useLiveEvaluation = () => {
 
         return () => {
             isActive = false;
-            analysisBridge.cancel();
+            analysisBridge.cancelLive();
         };
-    }, [fen, currentMoveIndex, setEvaluation, setBestMoveForIndex, setAlternativeLinesForIndex, setAnalyzing, appMode, isConnected]);
+    }, [fen, currentMoveIndex, setEvaluation, setBestMoveForIndex, setAlternativeLinesForIndex, setAnalyzing, appMode, isConnected, isBatchRunning, playShowEval]);
 };

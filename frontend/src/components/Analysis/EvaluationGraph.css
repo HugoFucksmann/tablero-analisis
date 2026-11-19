@@ -1,7 +1,7 @@
 /* EvaluationGraph.css */
 
 .evaluation-graph-container {
-  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-6);
+  padding: var(--space-2) var(--gutter, var(--space-5));
 }
 
 .evaluation-graph-container:hover {
@@ -303,4 +303,23 @@
   color: var(--error-primary, #e05555);
   background: rgba(224, 85, 85, 0.12);
   border-color: rgba(224, 85, 85, 0.25);
-}
+}
+/* ── Barras de tiempo pensado por jugada ──────────────────────────────────── */
+.time-bar {
+  pointer-events: all;
+  opacity: 0.9;
+}
+
+.time-bar.white { fill: var(--eval-white); }
+.time-bar.black { fill: #8a8179; }
+.time-bar.is-error { fill: var(--warning-primary); opacity: 1; }
+
+.time-lane-line {
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.graph-nav-btn.active {
+  color: var(--accent-primary);
+}

@@ -126,7 +126,7 @@ function _calcAdvancedMetrics(
 
         // ── Time error stats tracking ─────────────────────────────────────────
         const isUserError = m.isWhiteMove === isUserWhite && 
-            ['Error', 'Error grave', 'Imprecisión', 'Insta-move Blunder', 'Deep-think Blunder', 'Time Pressure Error'].includes(m.label);
+            ['Error', 'Error grave', 'Imprecisión'].includes(m.label);
         if (isUserError) {
             metrics.errorTimeStats.totalErrors++;
             if (m.errorTimeClass === 'time_pressure') {
@@ -180,10 +180,7 @@ function _calcAdvancedMetrics(
                 midgameTimeSum += m.moveTime;
                 midgameCount++;
             }
-            const isBlunderLabel = [
-                'Error', 'Error grave', 'Insta-move Blunder',
-                'Deep-think Blunder', 'Time Pressure Error',
-            ].includes(m.label);
+            const isBlunderLabel = ['Error', 'Error grave'].includes(m.label);
 
             if (isBlunderLabel) {
                 blunderTimeSum += m.moveTime;

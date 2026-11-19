@@ -10,7 +10,7 @@ export const EvaluationEngine = {
     classifyMove(wpBefore: number, wpAfter: number, isWhiteMove: boolean, isEngineBestMove: boolean): MoveLabel {
         const rawWpLoss = isWhiteMove ? (wpBefore - wpAfter) : (wpAfter - wpBefore);
 
-        if (isEngineBestMove && rawWpLoss <= -0.05) return 'Brillante';
+        // 'Brillante' (!!) no sale de aquí: exige detectar un sacrificio (ver brilliantDetector.ts)
         if (isEngineBestMove) return 'Mejor';
 
         const wpLoss = Math.max(0, rawWpLoss);

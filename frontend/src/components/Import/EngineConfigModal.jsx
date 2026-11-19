@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Cpu, Layers, Hash, Gauge, Wand2 } from 'lucide-react';
+import { X, Cpu, Layers, Hash, Gauge, Wand2, Download, Upload } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import { useShallow } from 'zustand/react/shallow';
 import { backendService } from '../../services/backendService';
@@ -16,7 +16,58 @@ const DEFAULT_CONFIG = {
   hash: 512,
 };
 
+const downloadBackup = async () => {
+  const res = await fetch(`${backendService.httpUrl}/backup`);
+  if (!res.ok) throw new Error(`El servidor respondió ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `tablero-backup-${new Date().toISOString().slice(0, 10)}.sqlite`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+const uploadBackup = async (file) => {
+  const res = await fetch(`${backendService.httpUrl}/restore`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/octet-stream' },
+    body: file,
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `El servidor respondió ${res.status}`);
+  return body;
+};
+
 export const EngineConfigModal = ({ onClose }) => {
+  const [backupMsg, setBackupMsg] = useState(null); // { kind: 'ok' | 'error' | 'busy', text }
+  const restoreInputRef = React.useRef(null);
+
+  const handleBackup = async () => {
+    setBackupMsg({ kind: 'busy', text: 'Generando copia…' });
+    try {
+      await downloadBackup();
+      setBackupMsg({ kind: 'ok', text: 'Copia descargada.' });
+    } catch (e) {
+      setBackupMsg({ kind: 'error', text: `No se pudo crear la copia: ${e.message}` });
+    }
+  };
+
+  const handleRestore = async (file) => {
+    if (!file) return;
+    setBackupMsg({ kind: 'busy', text: 'Restaurando…' });
+    try {
+      const r = await uploadBackup(file);
+      // Refrescar las listas que dependen de la base
+      backendService.getAnalyses(0, 50);
+      backendService.getAnalysedIds();
+      backendService.getPuzzleGameIds();
+      setBackupMsg({ kind: 'ok', text: `Restaurado: ${r.analyses} análisis y ${r.puzzles} puzzles nuevos.` });
+    } catch (e) {
+      setBackupMsg({ kind: 'error', text: `No se pudo restaurar: ${e.message}` });
+    }
+  };
+
   const { engineConfig, setEngineConfig } = useGameStore(useShallow(state => ({
     engineConfig: state.engineConfig,
     setEngineConfig: state.setEngineConfig,
@@ -207,6 +258,38 @@ export const EngineConfigModal = ({ onClose }) => {
               formatValue={(v) => v === 1 ? '1 flecha' : `${v} flechas`}
               colorClass="accent-purple"
             />
+          </div>
+
+          <div className="ecm-section">
+            <h4 className="ecm-section-title">Copia de seguridad</h4>
+            <p className="ecm-auto-info">
+              Guarda o restaura tus análisis y puzzles. Al restaurar se fusionan con los actuales
+              (los análisis del archivo reemplazan a los repetidos).
+            </p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="ecm-auto-btn" onClick={handleBackup} disabled={!isConnected || backupMsg?.kind === 'busy'}>
+                <Download size={13} /> Descargar copia
+              </button>
+              <button
+                className="ecm-auto-btn"
+                onClick={() => restoreInputRef.current?.click()}
+                disabled={!isConnected || backupMsg?.kind === 'busy'}
+              >
+                <Upload size={13} /> Restaurar…
+              </button>
+              <input
+                ref={restoreInputRef}
+                type="file"
+                accept=".sqlite,.db,application/octet-stream"
+                style={{ display: 'none' }}
+                onChange={(e) => { handleRestore(e.target.files?.[0]); e.target.value = ''; }}
+              />
+            </div>
+            {backupMsg && (
+              <p className="ecm-auto-info" style={{ color: backupMsg.kind === 'error' ? 'var(--error-primary)' : undefined }}>
+                {backupMsg.text}
+              </p>
+            )}
           </div>
 
         </div>

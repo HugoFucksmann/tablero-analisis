@@ -31,17 +31,34 @@
 }
 
 /* ── Área de contenido scrollable ────────────────────────────────────────── */
+/*
+  Reparto vertical: tus jugadas (con Maestros compacto debajo) y "mis partidas en esta posición".
+  Cada bloque hace scroll por dentro; el contenedor solo desborda si el viewport es muy bajo.
+*/
 .move-explorer-view .explorer-content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
 }
 
+.move-explorer-view .explorer-content > .move-insight-card-modern {
+  flex-shrink: 0;
+}
+
 .move-explorer-view .explorer-grids {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 3 1 0;
+  min-height: 11rem;
+}
+
+.move-explorer-view .position-games {
+  flex: 2 1 0;
+  min-height: 9rem;
+  display: flex;
+  flex-direction: column;
 }
 
 .move-explorer-view .explorer-divider-soft {

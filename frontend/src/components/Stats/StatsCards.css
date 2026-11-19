@@ -433,3 +433,11 @@
   color: var(--text-muted);
   line-height: 1.4;
 }
+
+/* ── Salida de teoría ─────────────────────────────────────────────────────── */
+.dev-summary {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+

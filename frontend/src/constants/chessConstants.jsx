@@ -14,17 +14,6 @@ export const EVAL_CONFIG = {
 };
 
 
-export const MOVE_LABELS = [
-  'Error grave',
-  'Error',
-  'Imprecisión',
-  'Bueno',
-  'Excelente',
-  'Mejor',
-  'Brillante',
-  'Libro',
-];
-
 export const PIECE_ICONS = {
   P: { white: '♙', black: '♟' },
   N: { white: '♘', black: '♞' },

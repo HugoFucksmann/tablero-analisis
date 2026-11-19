@@ -7,15 +7,34 @@ import { ChessMath } from './chessMath.js';
 export function extractTimes(pgn: string): number[] {
     if (!pgn) return [];
     const times: number[] = [];
-    const clkRegex = /\{ \[%clk (\d+):(\d+):(\d+)\] \}/g;
+    // Lichess: `{ [%clk 0:05:00] }`; Chess.com: `{[%clk 0:04:58.7]}` (con décimas y sin espacios)
+    const clkRegex = /\[%clk\s+(\d+):(\d{1,2}):(\d{1,2})(?:\.(\d+))?\]/g;
     let match;
     while ((match = clkRegex.exec(pgn)) !== null) {
-        const h = parseInt(match[1]);
-        const m = parseInt(match[2]);
-        const s = parseInt(match[3]);
-        times.push(h * 3600 + m * 60 + s);
+        const h = parseInt(match[1], 10);
+        const m = parseInt(match[2], 10);
+        const s = parseInt(match[3], 10);
+        const frac = match[4] ? parseFloat(`0.${match[4]}`) : 0;
+        times.push(h * 3600 + m * 60 + s + frac);
     }
     return times;
+}
+
+/** Incremento (segundos) de un control de tiempo "<base>+<inc>" o "<base>"; 0 si no se puede deducir. */
+export function parseIncrement(timeControl: string | null | undefined): number {
+    const m = /^\d+\+(\d+)$/.exec((timeControl ?? '').trim());
+    return m ? parseInt(m[1], 10) : 0;
+}
+
+/**
+ * Segundos que el jugador pensó en la jugada `ply`: reloj propio antes (2 plies atrás) menos reloj
+ * ahora, más el incremento que se le suma tras mover. Sin datos de reloj → undefined.
+ */
+export function computeMoveTime(times: (number | null | undefined)[], ply: number, increment = 0): number | undefined {
+    const prev = ply >= 2 ? times[ply - 2] : undefined;
+    const cur = times[ply];
+    if (typeof prev !== 'number' || typeof cur !== 'number') return undefined;
+    return Math.max(0, Math.round((prev - cur + increment) * 10) / 10);
 }
 
 export interface ParsedPgn {

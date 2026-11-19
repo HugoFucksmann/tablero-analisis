@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Chess } from 'chess.js';
 import { EvaluationBar } from '../Analysis/EvaluationBar';
 import { calculateMaterial } from '../../utils/chessUtils';
 import { getActiveColor } from '../../utils/boardUtils';
@@ -17,6 +18,7 @@ import { useFullGameAnalysis } from '../../hooks/useFullGameAnalysis';
 import { useLiveEvaluation } from '../../hooks/useLiveEvaluation';
 import { useClockSync } from '../../hooks/useClockSync';
 import { useEvaluationNavigation } from '../../hooks/useEvaluationNavigation';
+import { usePlayController } from '../../hooks/usePlayController';
 
 import { useBoardInteraction } from './hooks/useBoardInteraction';
 import { useBoardNavigation } from './hooks/useBoardNavigation';
@@ -26,11 +28,28 @@ import { playChessSound } from '../../utils/soundUtils';
 
 const WRONG_MOVE_REVERT_MS = 700;
 
+const toMoveObj = (uci) => ({ from: uci.slice(0, 2), to: uci.slice(2, 4), ...(uci.length === 5 ? { promotion: uci[4] } : {}) });
+
+// ¿Ambas jugadas dan jaque mate desde `fen`? (puzzles de mate: cualquier mate es válido)
+const bothDeliverMate = (fen, expectedUci, playedMove) => {
+  try {
+    const mates = (m) => {
+      const c = new Chess(fen);
+      c.move(m);
+      return c.isCheckmate();
+    };
+    return mates(toMoveObj(expectedUci)) && mates(playedMove);
+  } catch {
+    return false;
+  }
+};
+
 export const Board = () => {
   useFullGameAnalysis();
   useLiveEvaluation();
   useClockSync();
   useEvaluationNavigation();
+  usePlayController();
 
   const fen = useFen();
   const makeMoveNormal = useMakeMove();
@@ -48,6 +67,9 @@ export const Board = () => {
     setPuzzleState: state.setPuzzleState,
   })));
 
+  // En Jugar la barra de evaluación se oculta salvo que el usuario active "Mostrar evaluación"
+  const showEvalBar = useGameStore(s => s.appMode !== 'play' || s.play.showEval);
+
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   useEffect(() => {
@@ -63,6 +85,16 @@ export const Board = () => {
   useBoardNavigation(boardRef, currentMoveIndex, history.length, goToMove);
 
   const makeMove = React.useCallback((move) => {
+    // Modo Jugar: solo se mueve con la partida en curso, en tu turno y sin que el bot esté pensando
+    if (appMode === 'play') {
+      const { play, fen: currentFen, history: h, currentMoveIndex: idx, goToMove: go } = useGameStore.getState();
+      if (play.phase !== 'playing' || currentFen.split(' ')[1] !== play.userColor || play.thinking) return null;
+      // Si estabas repasando jugadas anteriores, vuelve al final en vez de mover desde el pasado
+      if (idx !== h.length - 1) {
+        go(h.length - 1);
+        return null;
+      }
+    }
     if (appMode === 'puzzle' && puzzleState && !puzzleState.isSolved) {
       if (puzzleState.isAnimating) return null; // Reject silently during animation
 
@@ -79,7 +111,12 @@ export const Board = () => {
       const isPromotionExpected = expectedMove && expectedMove.length === 5;
       const uciMove = move.from + move.to + (isPromotionExpected ? (move.promotion || 'q') : '');
 
-      if (uciMove === expectedMove) {
+      const isLastStep = puzzleState.currentStep === puzzleState.sequence.length - 1;
+      // Última jugada de un puzzle de mate: cualquier mate legal se acepta aunque difiera del guardado.
+      const isAlternativeMate = !!expectedMove && uciMove !== expectedMove && isLastStep
+        && bothDeliverMate(useGameStore.getState().fen, expectedMove, move);
+
+      if (uciMove === expectedMove || isAlternativeMate) {
         // Correct move
         setPuzzleState(prev => ({ ...prev, isWrong: false, currentStep: prev.currentStep + 1, isSolved: prev.currentStep + 1 >= prev.sequence.length }));
         return makeMoveNormal(move);
@@ -159,9 +196,11 @@ export const Board = () => {
       <PlayerArea {...playerAreaProps(topSide, true)} />
 
       <div className="board-main-layout">
-        <div className="eval-bar-aside">
-          <EvaluationBar orientation={isMobile ? 'horizontal' : 'vertical'} />
-        </div>
+        {showEvalBar && (
+          <div className="eval-bar-aside">
+            <EvaluationBar orientation={isMobile ? 'horizontal' : 'vertical'} />
+          </div>
+        )}
 
         <div className="board-frame">
           <div className="board-main-area" ref={boardRef}>

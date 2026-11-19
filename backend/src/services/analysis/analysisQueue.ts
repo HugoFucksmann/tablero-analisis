@@ -1,4 +1,4 @@
-import { StockfishProcess } from '../../core/stockfishProcess.js';
+import { StockfishProcess, type PlayStrength } from '../../core/stockfishProcess.js';
 import { ChessMath } from '../../utils/chessMath.js';
 import { mapLines, parsePgn } from '../../utils/analysisUtils.js';
 import { GameAnalysisCoordinator } from './gameAnalysisCoordinator.js';
@@ -31,6 +31,13 @@ export interface BatchAnalysisCallbacks {
     onOpeningDetected?: (data: any) => void;
 }
 
+/** Jugada del motor (UCI, '' si no hay) y su evaluación desde el punto de vista de quien mueve. */
+export interface PlayMoveResult {
+    move: string;
+    score: number;
+    mate: number | null;
+}
+
 export class AnalysisQueue {
     private _sf: StockfishProcess;
     // Controladores independientes: una consulta en vivo (el usuario mueve el tablero) no debe
@@ -40,6 +47,9 @@ export class AnalysisQueue {
     private _liveRunning: boolean;
     private _jobRunning: boolean;
     private _gameCoordinator: GameAnalysisCoordinator;
+    // Motor independiente para jugar contra el usuario: su fuerza limitada no debe afectar a la evaluación en vivo.
+    private _playSf: StockfishProcess | null = null;
+    private _playAc: AbortController | null = null;
 
     constructor() {
         this._sf = new StockfishProcess();
@@ -52,6 +62,11 @@ export class AnalysisQueue {
 
     public get running(): boolean {
         return this._liveRunning || this._jobRunning;
+    }
+
+    /** Cancela solo la evaluación en vivo (mensaje `cancel_live` del cliente). */
+    public cancelLive(): void {
+        this._cancelLive();
     }
 
     /** Cancela solo la evaluación en vivo. */
@@ -78,12 +93,54 @@ export class AnalysisQueue {
     public cancel(): void {
         this._cancelJob();
         this._cancelLive();
+        this.cancelPlay();
     }
 
     public destroy(): void {
         console.log('[Engine] Destroying session Stockfish instance');
         this.cancel();
+        this._playAc?.abort();
+        this._playAc = null;
+        this._playSf?.destroy();
+        this._playSf = null;
         this._sf.destroy();
+    }
+
+    /**
+     * Calcula la respuesta del motor a una posición con fuerza limitada (modo práctica).
+     * Devuelve la jugada en UCI, o '' si no hay jugadas (fin de partida).
+     */
+    public async playMove(
+        fen: string,
+        options: PlayStrength & { movetimeMs?: number } = {},
+        config: any = {}
+    ): Promise<PlayMoveResult> {
+        this._playAc?.abort();
+        const ac = new AbortController();
+        this._playAc = ac;
+
+        if (!this._playSf) this._playSf = new StockfishProcess();
+        const sf = this._playSf;
+
+        try {
+            await sf.init({ threads: 1, hash: 64, multiPv: 1, ...(config?.threads ? { threads: Math.min(config.threads, 2) } : {}) });
+            await sf.setStrength({ elo: options.elo ?? null, skill: options.skill ?? null });
+            if (ac.signal.aborted) return { move: '', score: 0, mate: null };
+            const movetime = Math.min(10_000, Math.max(100, Math.floor(options.movetimeMs ?? 1000)));
+            const result = await sf.analyzePosition(fen, 30, ac.signal, null, 1, movetime);
+            if (ac.signal.aborted) return { move: '', score: 0, mate: null };
+            // score/mate son desde el punto de vista de quien mueve en `fen`
+            return { move: result.bestMove, score: result.score, mate: result.mate };
+        } finally {
+            if (this._playAc === ac) this._playAc = null;
+        }
+    }
+
+    /** Cancela una búsqueda del modo práctica en curso. */
+    public cancelPlay(): void {
+        this._playAc?.abort();
+        this._playAc = null;
+        this._playSf?.stop();
     }
 
     /**

@@ -45,6 +45,7 @@ db.exec(`
         color            TEXT,
         win              INTEGER,
         timeControl      TEXT,
+        customStart      INTEGER DEFAULT 0,
         whiteAccuracy    INTEGER,
         blackAccuracy    INTEGER,
         accuracyByPhase  TEXT,
@@ -82,11 +83,14 @@ db.exec(`
     );
 
     CREATE TABLE IF NOT EXISTS analysis_full_data (
-        game_id   TEXT PRIMARY KEY,
-        full_json TEXT,
-        FOREIGN KEY(game_id) REFERENCES analyses(gameId) ON DELETE CASCADE
+        analysis_id TEXT PRIMARY KEY,
+        full_json   TEXT,
+        FOREIGN KEY(analysis_id) REFERENCES analyses(id) ON DELETE CASCADE
     );
 
+    -- puzzles.gameId es el id de la plataforma y NO lleva FK a analyses a propósito: los puzzles
+    -- se pueden extraer de partidas sin analizar (Database Bypass) y deben sobrevivir al borrado
+    -- de su análisis. Los datos de la partida se unen con LEFT JOIN por gameId (ver puzzleRepo).
     CREATE TABLE IF NOT EXISTS puzzles (
         id                   TEXT PRIMARY KEY,
         createdAt            TEXT,
@@ -111,7 +115,11 @@ db.exec(`
         attackedSquares      INTEGER,
         isOnlyMove           INTEGER,   -- 0/1 (SQLite no tiene BOOLEAN)
         criticalityGap       REAL,
-        tacticalMotifs       TEXT       -- array JSON
+        tacticalMotifs       TEXT,      -- array JSON
+        attempts             INTEGER DEFAULT 0,   -- SRS: veces entrenado
+        failures             INTEGER DEFAULT 0,   -- SRS: veces fallado
+        streak               INTEGER DEFAULT 0,   -- SRS: aciertos seguidos
+        nextReviewAt         TEXT                 -- SRS: próximo repaso (ISO)
     );
 `);
 
@@ -155,6 +163,34 @@ const MIGRATIONS: Array<() => void> = [
         // Redundante: (game_id, ply) ya es PRIMARY KEY y cubre búsquedas por game_id.
         db.exec('DROP INDEX IF EXISTS idx_moves_game');
     },
+    // v2 — analysis_full_data referenciaba analyses(gameId) mientras el resto de tablas hijas usan
+    // analyses(id). Se unifica en analysis_id → analyses(id) conservando los datos existentes.
+    () => {
+        if (!columnNames('analysis_full_data').has('game_id')) return; // ya creada con el esquema final
+        db.exec(`
+            CREATE TABLE analysis_full_data_new (
+                analysis_id TEXT PRIMARY KEY,
+                full_json   TEXT,
+                FOREIGN KEY(analysis_id) REFERENCES analyses(id) ON DELETE CASCADE
+            );
+            INSERT OR IGNORE INTO analysis_full_data_new (analysis_id, full_json)
+                SELECT a.id, f.full_json
+                FROM analysis_full_data f JOIN analyses a ON a.gameId = f.game_id;
+            DROP TABLE analysis_full_data;
+            ALTER TABLE analysis_full_data_new RENAME TO analysis_full_data;
+        `);
+    },
+    // v3 — marca las partidas con posición inicial personalizada (Chess960 / temáticas).
+    () => {
+        ensureColumns('analyses', { customStart: 'INTEGER DEFAULT 0' });
+    },
+    // v4 — repetición espaciada (SRS) en puzzles.
+    () => {
+        ensureColumns('puzzles', {
+            attempts: 'INTEGER DEFAULT 0', failures: 'INTEGER DEFAULT 0',
+            streak: 'INTEGER DEFAULT 0', nextReviewAt: 'TEXT',
+        });
+    },
 ];
 
 const currentVersion = db.pragma('user_version', { simple: true }) as number;
@@ -177,6 +213,7 @@ db.exec(`
     CREATE INDEX IF NOT EXISTS idx_puzzles_fen        ON puzzles(fen);
     CREATE INDEX IF NOT EXISTS idx_puzzles_gameId     ON puzzles(gameId);
     CREATE INDEX IF NOT EXISTS idx_puzzles_type       ON puzzles(puzzleType);
+    CREATE INDEX IF NOT EXISTS idx_puzzles_review     ON puzzles(nextReviewAt);
     DROP INDEX IF EXISTS idx_date;
     DROP INDEX IF EXISTS idx_timeControl;
     DROP INDEX IF EXISTS idx_username;

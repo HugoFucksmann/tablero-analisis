@@ -41,6 +41,10 @@ export const GameStore = {
         return SqliteStore.getMoveExplorer(fen);
     },
 
+    async getGamesAtPosition(fen: string): Promise<any[]> {
+        return SqliteStore.getGamesAtPosition(fen);
+    },
+
     async delete(ids: string | string[]): Promise<boolean> {
         const idArray = Array.isArray(ids) ? ids : [ids];
         SqliteStore.delete(idArray);

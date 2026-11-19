@@ -9,6 +9,7 @@ import { ExplorerHeader } from './ExplorerHeader';
 import { ExplorerNav } from './ExplorerNav';
 import { MoveInsightCard } from './MoveInsightCard';
 import { MoveSection } from './MoveSection';
+import { PositionGames } from './PositionGames';
 
 import './MoveExplorerView.css';
 
@@ -169,7 +170,7 @@ export const MoveExplorerView = () => {
 
   useEffect(() => {
     return () => {
-      analysisBridge.cancel();
+      analysisBridge.cancelLive();
     };
   }, []);
 
@@ -287,11 +288,14 @@ export const MoveExplorerView = () => {
             moves={mastersData}
             title="Maestros (Lichess)"
             isMaster={true}
+            className="masters"
             isLoading={loadingMasters}
             onMoveClick={handleMoveClick}
             setHoveredExplorerMove={setHoveredExplorerMove}
           />
         </div>
+
+        <PositionGames fen={fen} />
       </div>
     </div>
   );

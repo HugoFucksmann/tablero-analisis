@@ -1,7 +1,7 @@
 import React from 'react';
-import { Cpu } from 'lucide-react';
+import { Cpu, Target } from 'lucide-react';
 
-export const BulkActionBar = ({ selectedCount, batchStatus, onAnalyze, onClear }) => {
+export const BulkActionBar = ({ selectedCount, batchStatus, onAnalyze, onExtractPuzzles, onClear }) => {
   if (selectedCount === 0 || batchStatus) return null;
 
   return (
@@ -18,6 +18,16 @@ export const BulkActionBar = ({ selectedCount, batchStatus, onAnalyze, onClear }
           <Cpu size={14} />
           Analizar Partidas
         </button>
+        {onExtractPuzzles && (
+          <button
+            className="gi-bulk-btn analyze"
+            onClick={onExtractPuzzles}
+            title="Extraer puzzles de las partidas seleccionadas"
+          >
+            <Target size={14} />
+            Extraer Puzzles
+          </button>
+        )}
       </div>
       <button 
         className="gi-bulk-clear" 

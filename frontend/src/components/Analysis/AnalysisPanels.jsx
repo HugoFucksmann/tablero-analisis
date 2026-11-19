@@ -8,6 +8,7 @@ import { Key, Cpu, Download } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import { useShallow } from 'zustand/react/shallow';
 import { generateAnnotatedPgn, downloadPgn } from '../../utils/pgnExport';
+import { sansOf, allVariations } from '../../utils/variations';
 
 export const AnalysisPanels = ({
   isHistoryCollapsed,
@@ -40,8 +41,14 @@ export const AnalysisPanels = ({
   const explorerTitle = (openingName && openingName !== 'Initial Position') ? openingName : 'Explorador';
 
   const handleDownloadPgn = () => {
-    const { moveEvaluations, evaluationHistory, engineConfig, gameHeaders, pgnCommentsByIndex } = useGameStore.getState();
-    const pgn = generateAnnotatedPgn(history, moveEvaluations, evaluationHistory, engineConfig, gameHeaders, pgnCommentsByIndex);
+    const s = useGameStore.getState();
+    // Al explorar una variante, la partida principal y sus evaluaciones están en mainLineData
+    const main = s.isExploreMode && s.mainLineData ? s.mainLineData : s;
+    const variations = allVariations(s.variations, sansOf(main.history), sansOf(s.history), s.isExploreMode);
+    const pgn = generateAnnotatedPgn(
+      main.history, main.moveEvaluations, main.evaluationHistory, s.engineConfig,
+      s.gameHeaders, s.pgnCommentsByIndex, variations,
+    );
     downloadPgn(pgn, 'analisis_partida.pgn');
   };
   return (

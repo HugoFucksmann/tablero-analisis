@@ -1,6 +1,16 @@
-# Cambios realizados (v1.0)
+# Cambios realizados
 
-Registro de lo ya implementado y verificado. Lo que sigue abierto está en [DECISIONES.md](DECISIONES.md).
+Registro de lo ya implementado y verificado. Lo que sigue abierto está en [DECISIONES.md](DECISIONES.md). El resumen por versión está en el [CHANGELOG](CHANGELOG.md).
+
+## v1.1
+
+- **Funcionalidades:** modo Jugar, brillantes, variantes, tiempo por jugada, explorador con tus partidas, puzzles con repetición espaciada, salida de teoría, importación de `.pgn`, respaldo y diseño móvil (detalle en el CHANGELOG).
+- **Correcciones de medición:** estadísticas personales solo con jugadas del usuario, tiempos con incremento y relojes de Chess.com, controles de tiempo en segundos.
+- **Robustez:** `cancel_live` separado, validación y límites en el WebSocket, `Origin`, timeouts del motor, migraciones v2–v4, `withScope` para las estadísticas.
+- **Calidad:** contrato tipado, 59 tests (backend 42, frontend 17) y CI con typecheck + tests. Cobertura: lógica pura, repositorios con base temporal, migración v2, respaldo/restauración, validador, detector de brillantes, PGN, variantes y utilidades del modo Jugar. No hay tests de componentes React ni de la extracción de puzzles con el motor real.
+- **Verificado en el navegador:** análisis, explorador, estadísticas, puzzles, modo Jugar (inicio, jugada del bot, pista, deshacer) y diseño móvil (menú, estadísticas, jugar).
+
+## v1.0
 
 ## Estructura y documentación
 - Monorepo `frontend/` + `backend/` + `shared/` (contrato WebSocket). Los repos originales no se tocaron; sin historia git (decisión tomada).

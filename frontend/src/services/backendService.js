@@ -13,6 +13,11 @@ class BackendService {
         this.shouldBeConnected = false;
     }
 
+    /** URL HTTP del mismo servidor (respaldo / restauración): ws://host:port → http://host:port */
+    get httpUrl() {
+        return this.url.replace(/^ws/, 'http');
+    }
+
     connect() {
         this.shouldBeConnected = true;
         if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
@@ -168,6 +173,15 @@ class BackendService {
         return this.send('cancel', {});
     }
 
+    /** Pide la jugada del motor (UCI) con fuerza limitada. Responde `engine_move_result`. */
+    requestEngineMove(fen, { elo = null, skill = null, movetime = 1000, threads } = {}) {
+        return this.request('engine_move', { fen, elo, skill, movetime, threads }, 'engine_move_result');
+    }
+
+    cancelLive() {
+        return this.send('cancel_live', {});
+    }
+
     clearCache(gameId) {
         return this.send('clear_cache', { gameId });
     }
@@ -178,6 +192,14 @@ class BackendService {
 
     analyzeGames(games, engineConfig) {
         return this.send('analyze_games', { games, engineConfig });
+    }
+
+    extractPuzzlesFromAnalyses(gameIds, engineConfig) {
+        return this.send('extract_puzzles_from_analyses', { gameIds, engineConfig });
+    }
+
+    getPuzzleGameIds() {
+        return this.send('get_puzzle_game_ids', {});
     }
 
     cancelExtraction() {
@@ -194,6 +216,10 @@ class BackendService {
 
     clearPuzzles() {
         return this.send('clear_puzzles', {});
+    }
+
+    puzzleFailed(id) {
+        return this.send('puzzle_failed', { id });
     }
 
     puzzleSolved(id) {
@@ -218,6 +244,10 @@ class BackendService {
 
     getFullAnalysis(gameId, requestId = null) {
         return this.send('get_full_analysis', { gameId }, requestId);
+    }
+
+    getGamesAtPosition(fen) {
+        return this.request('get_games_at_position', { fen }, 'games_at_position');
     }
 
     getMoveExplorer(fen, requestId = null) {

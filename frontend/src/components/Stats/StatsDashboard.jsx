@@ -3,6 +3,7 @@ import { m } from 'framer-motion';
 import { useShallow } from 'zustand/react/shallow';
 import { backendService } from '../../services/backendService';
 import { useGameStore } from '../../store/useGameStore';
+import { useDialog } from '../Common/ConfirmDialog';
 import './StatsDashboard.css';
 
 // Sub-components
@@ -16,9 +17,10 @@ const PAGE_SIZE = 50;
 
 export const StatsDashboard = () => {
   const [state, dispatch] = useReducer(statsReducer, statsInitialState);
+  const { confirm, dialog } = useDialog();
   const {
     rawData, loading, activeTab, selectedIds, historyLoaded,
-    isFiltering, historyOffset, hasMore, timeFilter, durationFilter, countFilter
+    isFiltering, historyOffset, hasMore, timeFilter, durationFilter, countFilter, incrementFilter, startFilter
   } = state;
 
   const { username, analyses, setAnalyses, appendAnalyses, removeAnalyses } = useGameStore(useShallow(state => ({
@@ -47,9 +49,11 @@ export const StatsDashboard = () => {
       time: timeFilter,
       duration: durationFilter,
       count: countFilter,
+      increment: incrementFilter,
+      start: startFilter,
       username: username
     }, reqId);
-  }, [timeFilter, durationFilter, countFilter, username]);
+  }, [timeFilter, durationFilter, countFilter, incrementFilter, startFilter, username]);
 
   // ── Side Effects ─────────────────────────────────────────────────
   useEffect(() => {
@@ -91,7 +95,7 @@ export const StatsDashboard = () => {
     if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current);
     filterTimeoutRef.current = setTimeout(fetchStats, 300);
     return () => clearTimeout(filterTimeoutRef.current);
-  }, [timeFilter, durationFilter, countFilter, fetchStats, loading]);
+  }, [timeFilter, durationFilter, countFilter, incrementFilter, startFilter, fetchStats, loading]);
 
   // ── UI Callbacks ─────────────────────────────────────────────────
   const handleTabChange = useCallback((tab) => {
@@ -107,23 +111,31 @@ export const StatsDashboard = () => {
     dispatch({ type: 'UPDATE', payload: { historyOffset: historyOffset + PAGE_SIZE } });
   }, [historyOffset]);
 
-  const handleBulkDelete = useCallback(() => {
+  const handleBulkDelete = useCallback(async () => {
     if (selectedIds.size === 0) return;
-    if (window.confirm(`¿Borrar ${selectedIds.size} análisis?`)) {
+    if (await confirm(`¿Borrar ${selectedIds.size} análisis?`, { confirmLabel: 'Borrar' })) {
       const ids = Array.from(selectedIds);
       backendService.deleteAnalyses(ids);
       removeAnalyses(ids);
       dispatch({ type: 'UPDATE', payload: { selectedIds: new Set() } });
     }
-  }, [selectedIds, removeAnalyses]);
+  }, [selectedIds, removeAnalyses, confirm]);
 
-  const handleSingleDelete = useCallback((id, e) => {
-    e.stopPropagation();
-    if (window.confirm('¿Borrar este análisis?')) {
+  const handleExtractPuzzles = useCallback(() => {
+    const byId = new Map(analyses.map(a => [a.id, a.gameId]));
+    const gameIds = Array.from(selectedIds).map(id => byId.get(id)).filter(Boolean);
+    if (gameIds.length === 0) return;
+    backendService.extractPuzzlesFromAnalyses(gameIds, useGameStore.getState().engineConfig);
+    dispatch({ type: 'UPDATE', payload: { selectedIds: new Set() } });
+  }, [analyses, selectedIds]);
+
+  const handleSingleDelete = useCallback(async (id, e) => {
+    e?.stopPropagation();
+    if (await confirm('¿Borrar este análisis?', { confirmLabel: 'Borrar' })) {
       backendService.deleteAnalyses([id]);
       removeAnalyses([id]);
     }
-  }, [removeAnalyses]);
+  }, [removeAnalyses, confirm]);
 
   if (loading) return (
     <div className="stats-loading">
@@ -145,6 +157,7 @@ export const StatsDashboard = () => {
         analysesCount={analyses.length} 
         selectedCount={selectedIds.size} 
         onBulkDelete={handleBulkDelete} 
+        onExtractPuzzles={handleExtractPuzzles}
       />
 
       {activeTab === 'stats' && (
@@ -152,6 +165,8 @@ export const StatsDashboard = () => {
           timeFilter={timeFilter} 
           durationFilter={durationFilter} 
           countFilter={countFilter} 
+          incrementFilter={incrementFilter}
+          startFilter={startFilter}
           onFilterChange={(key, val) => dispatch({ type: 'UPDATE', payload: { [key]: val } })} 
         />
       )}
@@ -169,6 +184,7 @@ export const StatsDashboard = () => {
       ) : (
         <StatsSummaryView stats={rawData} />
       )}
+      {dialog}
     </m.div>
   );
-};
+};

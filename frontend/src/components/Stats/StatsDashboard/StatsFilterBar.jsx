@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Clock, Layers } from 'lucide-react';
+import { Calendar, Clock, Layers, Plus, Crown } from 'lucide-react';
 import './StatsFilterBar.css';
 
 
@@ -7,6 +7,8 @@ export const StatsFilterBar = ({
   timeFilter, 
   durationFilter, 
   countFilter, 
+  incrementFilter = 'all',
+  startFilter = 'all',
   onFilterChange 
 }) => {
   return (
@@ -39,6 +41,32 @@ export const StatsFilterBar = ({
           <option value="10m">10m Rápida</option>
           <option value="15m">15m Rápida</option>
           <option value="30m">30m Clásica</option>
+        </select>
+      </div>
+      <div className="filter-pill-group">
+        <Plus size={13} />
+        <select
+          value={incrementFilter}
+          onChange={(e) => onFilterChange('incrementFilter', e.target.value)}
+          className="stats-dropdown"
+          aria-label="Incremento"
+        >
+          <option value="all">Cualquier inc.</option>
+          <option value="none">Sin inc.</option>
+          <option value="inc">Con inc.</option>
+        </select>
+      </div>
+      <div className="filter-pill-group">
+        <Crown size={13} />
+        <select
+          value={startFilter}
+          onChange={(e) => onFilterChange('startFilter', e.target.value)}
+          className="stats-dropdown"
+          aria-label="Posición inicial"
+        >
+          <option value="all">Cualquier inicio</option>
+          <option value="standard">Estándar</option>
+          <option value="custom">Personalizado</option>
         </select>
       </div>
       <div className="filter-pill-group">

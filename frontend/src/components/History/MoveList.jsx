@@ -4,10 +4,12 @@ import { useGameStore } from '../../store/useGameStore';
 import { useShallow } from 'zustand/react/shallow';
 import { EVAL_CONFIG } from '../../constants/chessConstants.jsx';
 import { getPieceIcon } from '../../utils/chessUtils';
+import { VariationsPanel } from './VariationsPanel';
 import './MoveList.css';
 
 const RenderMove = ({ move, side, currentMoveIndex, goToMove }) => {
-  if (!move) return null;
+  // Hueco vacío: mantiene las columnas alineadas (p. ej. cuando la primera jugada es de negras)
+  if (!move) return <div aria-hidden="true" />;
   const config = EVAL_CONFIG[move.eval];
   const pieceMatch = move.san.match(/^([NBRQK])/);
   const piece = pieceMatch ? pieceMatch[1] : null;
@@ -43,7 +45,8 @@ const RenderMove = ({ move, side, currentMoveIndex, goToMove }) => {
   );
 };
 
-export const MoveList = () => {
+/** `compact`: sin botón de volver a la partida principal ni variantes (p. ej. en el modo Jugar). */
+export const MoveList = ({ compact = false }) => {
   const {
     history,
     moveEvaluations,
@@ -51,6 +54,7 @@ export const MoveList = () => {
     goToMove,
     isExploreMode,
     restoreMainLine,
+    startFen,
   } = useGameStore(useShallow(state => ({
     history: state.history,
     moveEvaluations: state.moveEvaluations,
@@ -58,6 +62,7 @@ export const MoveList = () => {
     goToMove: state.goToMove,
     isExploreMode: state.isExploreMode,
     restoreMainLine: state.restoreMainLine,
+    startFen: state.startFen,
   })));
 
   const scrollRef = useRef(null);
@@ -73,18 +78,31 @@ export const MoveList = () => {
   const getSan = (entry) => (entry && typeof entry === 'object' ? entry.san : entry);
 
   const movePairs = useMemo(() => {
+    // Partidas que arrancan con turno de negras (FEN personalizado): la primera jugada va en la columna
+    // de negras y la numeración sigue la del FEN.
+    const fenParts = (startFen || '').split(' ');
+    const blackFirst = fenParts[1] === 'b';
+    const startFullmove = parseInt(fenParts[5], 10) || 1;
+
+    const entry = (i) => (history[i]
+      ? { ...history[i], san: getSan(history[i]), index: i, eval: moveEvaluations[i] }
+      : null);
+
     const pairs = [];
-    for (let i = 0; i < history.length; i += 2) {
+    let i = 0;
+    if (blackFirst && history.length > 0) {
+      pairs.push({ round: startFullmove, white: null, black: entry(0) });
+      i = 1;
+    }
+    for (; i < history.length; i += 2) {
       pairs.push({
-        round: Math.floor(i / 2) + 1,
-        white: { ...history[i], san: getSan(history[i]), index: i, eval: moveEvaluations[i] },
-        black: history[i + 1]
-          ? { ...history[i + 1], san: getSan(history[i + 1]), index: i + 1, eval: moveEvaluations[i + 1] }
-          : null,
+        round: startFullmove + Math.floor((i + (blackFirst ? 1 : 0)) / 2),
+        white: entry(i),
+        black: entry(i + 1),
       });
     }
     return pairs;
-  }, [history, moveEvaluations]);
+  }, [history, moveEvaluations, startFen]);
 
   return (
     <div className="move-list-container premium-scroll">
@@ -92,7 +110,7 @@ export const MoveList = () => {
         <span>#</span>
         <span>Blancas</span>
         <span>Negras</span>
-        {isExploreMode && (
+        {isExploreMode && !compact && (
           <button
             className="explore-restore-btn"
             onClick={restoreMainLine}
@@ -115,6 +133,8 @@ export const MoveList = () => {
           <div className="empty-history">Sin movimientos aún</div>
         )}
       </div>
+
+      {!compact && <VariationsPanel />}
     </div>
   );
 };

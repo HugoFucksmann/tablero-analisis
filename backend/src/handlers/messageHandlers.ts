@@ -4,7 +4,8 @@ import { PuzzleStore } from '../storage/puzzleStore.js';
 import { OpeningService } from '../services/openings/openingService.js';
 import { OpeningBook } from '../services/openings/openingBook.js';
 import { AnalysisQueue } from '../services/analysis/analysisQueue.js';
-import { PuzzleExtractor } from '../services/puzzles/puzzleExtractor.js';
+import { PuzzleExtractor, type PuzzleExtractionGame } from '../services/puzzles/puzzleExtractor.js';
+import { Chess } from 'chess.js';
 import type { ClientMessage, ServerMessage } from '../../../shared/protocol.js';
 
 export interface ClientMessageContext {
@@ -17,6 +18,23 @@ export interface ClientMessageContext {
 type Handlers = {
     [K in ClientMessage['type']]: (msg: Extract<ClientMessage, { type: K }>, context: ClientMessageContext) => void;
 };
+
+function runPuzzleExtraction(
+    games: PuzzleExtractionGame[],
+    engineConfig: any,
+    puzzleExtractor: PuzzleExtractor,
+    send: (payload: ServerMessage) => void
+): void {
+    send({ type: 'puzzle_extraction_started', totalGames: games.length });
+    puzzleExtractor.extractFromGames(games, engineConfig, {
+        onGameDone: (data) => send({ type: 'puzzle_game_done', ...data }),
+        onComplete: (data) => send({ type: 'puzzle_extraction_complete', ...data }),
+        onCancelled: (data) => send({ type: 'extraction_cancelled', ...data }),
+        onError: (err) => send({ type: 'error', message: err.message }),
+    }).catch((err) => {
+        if (err.name !== 'AbortError') send({ type: 'error', message: err.message });
+    });
+}
 
 const handlers: Handlers = {
     'analyze_position': (msg, { queue, send }) => {
@@ -74,6 +92,21 @@ const handlers: Handlers = {
         puzzleExtractor.cancel();
     },
 
+    // Modo Jugar: jugada del motor con fuerza limitada (usa un motor aparte del análisis en vivo)
+    'engine_move': (msg, { queue, send }) => {
+        const { fen, elo, skill, movetime, threads } = msg;
+        queue.playMove(fen, { elo, skill, movetimeMs: movetime }, { threads })
+            .then(({ move, score, mate }) => send({ type: 'engine_move_result', fen, move, score, mate }))
+            .catch((err) => {
+                if (err.name !== 'AbortError') send({ type: 'error', message: err.message });
+            });
+    },
+
+    // Solo evaluación en vivo: no toca lotes, análisis de partida ni extracción de puzzles.
+    'cancel_live': (_msg, { queue }) => {
+        queue.cancelLive();
+    },
+
     'clear_cache': (msg) => {
         OpeningService.clearCache(msg.gameId);
     },
@@ -84,15 +117,35 @@ const handlers: Handlers = {
             send({ type: 'error', message: 'No games provided for puzzle extraction' });
             return;
         }
-        send({ type: 'puzzle_extraction_started', totalGames: games.length });
-        puzzleExtractor.extractFromGames(games, engineConfig, {
-            onGameDone: (data) => send({ type: 'puzzle_game_done', ...data }),
-            onComplete: (data) => send({ type: 'puzzle_extraction_complete', ...data }),
-            onCancelled: (data) => send({ type: 'extraction_cancelled', ...data }),
-            onError: (err) => send({ type: 'error', message: err.message }),
-        }).catch((err) => {
-            if (err.name !== 'AbortError') send({ type: 'error', message: err.message });
-        });
+        runPuzzleExtraction(games, engineConfig, puzzleExtractor, send);
+    },
+
+    // Extrae puzzles de partidas ya analizadas reutilizando su historial guardado (sin PGN).
+    'extract_puzzles_from_analyses': async (msg, { puzzleExtractor, send }) => {
+        const { gameIds, engineConfig = {} } = msg;
+        const games: PuzzleExtractionGame[] = [];
+        for (const gameId of gameIds) {
+            try {
+                const full = await GameStore.getFull(String(gameId));
+                const sans: string[] = full?.historySan ?? [];
+                if (sans.length === 0) continue;
+                const startFen: string | null = full.startFen ?? null;
+                const chess = startFen ? new Chess(startFen) : new Chess();
+                for (const san of sans) chess.move(san);
+                games.push({ gameId: String(gameId), pgn: '', history: chess.history({ verbose: true }), startFen });
+            } catch (err: any) {
+                console.warn(`[Puzzle] Could not rebuild history for ${gameId}:`, err.message);
+            }
+        }
+        if (games.length === 0) {
+            send({ type: 'error', message: 'No analysed games available for puzzle extraction' });
+            return;
+        }
+        runPuzzleExtraction(games, engineConfig, puzzleExtractor, send);
+    },
+
+    'get_puzzle_game_ids': (_msg, { send }) => {
+        send({ type: 'puzzle_game_ids', ids: PuzzleStore.getGameIds() });
     },
 
     'cancel_extraction': (_msg, { puzzleExtractor }) => {
@@ -114,15 +167,20 @@ const handlers: Handlers = {
         send({ type: 'puzzles_cleared' });
     },
 
+    'puzzle_failed': (msg) => {
+        PuzzleStore.recordAttempt(msg.id, false);
+    },
+
     'puzzle_solved': (msg) => {
         PuzzleStore.incrementSolved(msg.id);
+        PuzzleStore.recordAttempt(msg.id, true);
     },
 
     'get_stats': (msg, { send }) => {
         const { filters = {}, requestId } = msg;
         GameStore.getStats(filters).then(stats => {
             if (!stats) {
-                send({ type: 'stats_data', requestId, stats: { games: [], total: 0, avgAcc: 0, accuracyByPhase: [], moveQuality: [] } });
+                send({ type: 'stats_data', requestId, stats: { empty: true } });
             } else {
                 send({ type: 'stats_data', requestId, stats });
             }
@@ -167,6 +225,13 @@ const handlers: Handlers = {
                 send({ type: 'error', message: `Analysis not found for gameId: ${gameId}` });
             }
         }).catch(err => send({ type: 'error', message: err.message }));
+    },
+
+    'get_games_at_position': (msg, { send }) => {
+        const fen = msg.fen.trim();
+        GameStore.getGamesAtPosition(fen)
+            .then(games => send({ type: 'games_at_position', fen, games }))
+            .catch(err => send({ type: 'error', message: err.message }));
     },
 
     'get_move_explorer': (msg, { send }) => {

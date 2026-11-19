@@ -6,7 +6,9 @@ import { useGameStore } from '../../store/useGameStore';
 import { useShallow } from 'zustand/react/shallow';
 import { EngineConfigModal } from '../Import/EngineConfigModal';
 import { ModeSelector } from './ModeSelector';
+import { MobileLayout } from './MobileLayout';
 import { PuzzleDashboard } from '../Puzzle/PuzzleDashboard';
+import { PlayPanel } from '../Play/PlayPanel';
 import { StatsDashboard } from '../Stats/StatsDashboard';
 import { MoveExplorerView } from '../Puzzle/MoveExplorer/MoveExplorerView';
 import { StatsDetailView } from '../Stats/StatsDetailView';
@@ -36,6 +38,41 @@ export const Dashboard = () => {
     appMode: state.appMode,
     selectedStatCategory: state.selectedStatCategory
   })));
+
+  // Paneles del modo actual (los mismos en escritorio y en móvil; cambia dónde se colocan)
+  const panels = (
+    <>
+      {appMode === 'analysis' && (
+        <AnalysisPanels
+          isHistoryCollapsed={isHistoryCollapsed}
+          setIsHistoryCollapsed={setIsHistoryCollapsed}
+          isExplorerCollapsed={isExplorerCollapsed}
+          setIsExplorerCollapsed={setIsExplorerCollapsed}
+          isImportCollapsed={isImportCollapsed}
+          setIsImportCollapsed={setIsImportCollapsed}
+        />
+      )}
+      {appMode === 'play' && <PlayPanel />}
+      {appMode === 'puzzle' && <PuzzleDashboard />}
+      {appMode === 'stats' && <StatsDashboard />}
+      {appMode === 'explorer' && <MoveExplorerView onBack={() => useGameStore.getState().setAppMode('analysis')} />}
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <div className="dashboard-container mobile">
+        <AnalysisLoadingModal />
+        <MobileLayout
+          board={<Board />}
+          panels={panels}
+          detail={<StatsDetailView />}
+          onOpenSettings={() => setShowEngineConfig(true)}
+        />
+        {showEngineConfig && <EngineConfigModal onClose={() => setShowEngineConfig(false)} />}
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-container">
@@ -84,20 +121,7 @@ export const Dashboard = () => {
             </div>
           </div>
 
-          {appMode === 'analysis' && (
-            <AnalysisPanels
-              isHistoryCollapsed={isHistoryCollapsed}
-              setIsHistoryCollapsed={setIsHistoryCollapsed}
-              isExplorerCollapsed={isExplorerCollapsed}
-              setIsExplorerCollapsed={setIsExplorerCollapsed}
-              isImportCollapsed={isImportCollapsed}
-              setIsImportCollapsed={setIsImportCollapsed}
-            />
-          )}
-
-          {appMode === 'puzzle' && <PuzzleDashboard />}
-          {appMode === 'stats' && <StatsDashboard />}
-          {appMode === 'explorer' && <MoveExplorerView onBack={() => useGameStore.getState().setAppMode('analysis')} />}
+          {panels}
         </aside>
       </main>
 

@@ -32,6 +32,12 @@ export const createLibrarySlice = (set, get) => ({
   // Array liviano de strings, sin objetos, sin LIMIT. Fuente: get_analysed_ids.
   analysedGameIds: [],
 
+  // ── Partidas con puzzles generados (insignias) ───────────────────
+  puzzleGameIds: [],
+
+  // ── Extracción de puzzles en curso (null | { current, total, extracted }) ──
+  extractionStatus: null,
+
   // ── Batch progress ──────────────────────────────────────────────
   batchStatus: null, // null | { current, total, label }
 
@@ -131,6 +137,9 @@ export const createLibrarySlice = (set, get) => ({
 
       return Object.keys(updates).length ? updates : state;
     }),
+
+  setPuzzleGameIds: (ids) => set({ puzzleGameIds: Array.isArray(ids) ? ids.map(String) : [] }),
+  setExtractionStatus: (status) => set({ extractionStatus: status }),
 
   // ── Actions: Batch ───────────────────────────────────────────────
   setBatchStatus: (status) => set({ batchStatus: status }),

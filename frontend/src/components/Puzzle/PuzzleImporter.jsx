@@ -46,10 +46,11 @@ export const PuzzleImporter = ({ onBack }) => {
       if (msg.type === 'puzzle_extraction_started') dispatch({ type: 'EXTRACTION_STARTED', totalGames: msg.totalGames });
       else if (msg.type === 'puzzle_game_done') dispatch({ type: 'EXTRACTION_PROGRESS', gameIndex: msg.gameIndex, totalExtracted: msg.totalExtracted });
       else if (msg.type === 'puzzle_extraction_complete' || msg.type === 'extraction_cancelled' || msg.type === 'error') {
-        alert(msg.type === 'error' ? `Error: ${msg.message}` : `Proceso terminado. Puzzles extraídos: ${msg.totalExtracted}`);
         dispatch({ type: 'EXTRACTION_DONE' });
         clearSelection();
-        if (msg.type !== 'error') onBack();
+        // Error: se muestra en línea. Éxito/cancelación: la biblioteca ya refleja los puzzles extraídos.
+        if (msg.type === 'error') dispatch({ type: 'SET_ERROR', payload: `Error: ${msg.message}` });
+        else onBack();
       }
     });
     return () => removeHandler();

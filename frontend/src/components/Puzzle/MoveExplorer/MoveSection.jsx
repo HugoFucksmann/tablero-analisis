@@ -55,11 +55,12 @@ export const MoveSection = ({
   title,
   isMaster = false,
   isLoading = false,
+  className = '',
   onMoveClick,
   setHoveredExplorerMove
 }) => {
   return (
-    <section className="explorer-section">
+    <section className={`explorer-section ${className}`}>
       <div className="section-header">
         <span>{title}</span>
         {isLoading && <Loader2 className="gi-spin" size={10} />}
